@@ -1,19 +1,23 @@
-import { jwtVerify } from 'jose';
+﻿import { jwtVerify } from 'jose';
+import { NextResponse } from 'next/server';
+
+function getSecretKey() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET no estÃ¡ definido en las variables de entorno.');
+  }
+  return new TextEncoder().encode(secret);
+}
 
 /**
  * Extrae y verifica el usuario autenticado desde la cookie auth_token.
- * Centraliza la lógica que estaba duplicada en cada API route.
- * @param {Request} request
  * @returns {Promise<{id, username, rol, nombre} | null>}
  */
 export async function getCurrentUser(request) {
   try {
     const token = request.cookies.get('auth_token')?.value;
     if (!token) return null;
-    const secretKey = new TextEncoder().encode(
-      process.env.JWT_SECRET || 'super_secret_jwt_key_12345'
-    );
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, getSecretKey());
     return payload;
   } catch {
     return null;
@@ -21,9 +25,44 @@ export async function getCurrentUser(request) {
 }
 
 /**
+ * Requiere autenticaciÃ³n. Devuelve 401 si no hay sesiÃ³n vÃ¡lida.
+ * @returns {Promise<{user, errorResponse}>}
+ */
+export async function requireAuth(request) {
+  const user = await getCurrentUser(request);
+  if (!user) {
+    return {
+      user: null,
+      errorResponse: NextResponse.json(
+        { error: 'No autorizado. Debe iniciar sesiÃ³n.' },
+        { status: 401 }
+      ),
+    };
+  }
+  return { user, errorResponse: null };
+}
+
+/**
+ * Requiere que el usuario sea administrador. Devuelve 401/403 si no lo es.
+ * @returns {Promise<{user, errorResponse}>}
+ */
+export async function requireAdmin(request) {
+  const { user, errorResponse } = await requireAuth(request);
+  if (errorResponse) return { user: null, errorResponse };
+  if (user.rol !== 'admin') {
+    return {
+      user: null,
+      errorResponse: NextResponse.json(
+        { error: 'Acceso denegado. Solo administradores.' },
+        { status: 403 }
+      ),
+    };
+  }
+  return { user, errorResponse: null };
+}
+
+/**
  * Retorna la IP del cliente desde los headers de la request.
- * @param {Request} request
- * @returns {string}
  */
 export function getClientIp(request) {
   return (
@@ -32,3 +71,5 @@ export function getClientIp(request) {
     'unknown'
   );
 }
+
+export { getSecretKey };

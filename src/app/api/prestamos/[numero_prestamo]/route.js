@@ -1,20 +1,8 @@
-import { NextResponse } from 'next/server';
-import pool, { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
+﻿import { NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 import { generarCalendarioCuotas } from '@/lib/cuotas';
 import { getConfig } from '@/lib/config';
-
-async function getCurrentUser(request) {
-  try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) return null;
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload;
-  } catch (err) {
-    return null;
-  }
-}
+import { getCurrentUser } from '@/lib/auth';
 
 export async function PUT(request, { params }) {
   try {
@@ -22,9 +10,9 @@ export async function PUT(request, { params }) {
     const numero_prestamo = decodeURIComponent(rawParam);
     const user = await getCurrentUser(request);
     
-    // 1. Autorización: Solo Admin puede editar
+    // 1. AutorizaciÃ³n: Solo Admin puede editar
     if (!user || user.rol !== 'admin') {
-      return NextResponse.json({ error: "No autorizado. Solo los administradores pueden editar préstamos." }, { status: 403 });
+      return NextResponse.json({ error: "No autorizado. Solo los administradores pueden editar prÃ©stamos." }, { status: 403 });
     }
 
     const body = await request.json();
@@ -39,10 +27,10 @@ export async function PUT(request, { params }) {
       numero_cuenta
     } = body;
 
-    // 2. Verificar existencia del préstamo
+    // 2. Verificar existencia del prÃ©stamo
     const prestamoRes = await query(`SELECT * FROM prestamos WHERE numero_prestamo = $1`, [numero_prestamo]);
     if (prestamoRes.rows.length === 0) {
-      return NextResponse.json({ error: "Préstamo no encontrado." }, { status: 404 });
+      return NextResponse.json({ error: "PrÃ©stamo no encontrado." }, { status: 404 });
     }
     const prestamo = prestamoRes.rows[0];
 
@@ -54,14 +42,14 @@ export async function PUT(request, { params }) {
     
     if (parseInt(cuotasPagadasRes.rows[0].count) > 0) {
       return NextResponse.json({ 
-        error: "No se puede editar este préstamo porque ya tiene pagos registrados. Si cometió un error, deberá reversar los pagos primero." 
+        error: "No se puede editar este prÃ©stamo porque ya tiene pagos registrados. Si cometiÃ³ un error, deberÃ¡ reversar los pagos primero." 
       }, { status: 400 });
     }
 
     // 4. Validar datos financieros
     const monto = parseFloat(monto_aprobado);
     if (isNaN(monto) || monto <= 0) {
-      return NextResponse.json({ error: "Monto inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Monto invÃ¡lido." }, { status: 400 });
     }
 
     const min = parseFloat(await getConfig('monto_minimo', 1000));
@@ -76,7 +64,7 @@ export async function PUT(request, { params }) {
 
     const cuotasNum = parseInt(total_cuotas);
     if (isNaN(cuotasNum) || cuotasNum <= 0) {
-      return NextResponse.json({ error: "Cantidad de cuotas inválida." }, { status: 400 });
+      return NextResponse.json({ error: "Cantidad de cuotas invÃ¡lida." }, { status: 400 });
     }
 
     const interes = parseFloat(tasa_interes) || 0.05;
@@ -89,92 +77,86 @@ export async function PUT(request, { params }) {
     const fechaProximoPago = calendario[0].fecha_vencimiento.toISOString().split('T')[0];
     const balanceTotal = calendario.reduce((sum, c) => sum + c.monto_cuota, 0);
 
-    // INICIO TRANSACCIÓN
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    // INICIO TRANSACCIÃ“N
+    await query('BEGIN');
 
-      // 6. Ajustar el capital prestado del cliente
-      // Restamos el viejo monto y sumamos el nuevo
-      const diffMonto = monto - parseFloat(prestamo.monto_aprobado);
-      if (diffMonto !== 0) {
-        await client.query(`
-          UPDATE clientes 
-          SET capital_prestado = capital_prestado + $1 
-          WHERE cedula = $2
-        `, [diffMonto, prestamo.cedula]);
-      }
-
-      // 7. Actualizar el préstamo
-      await client.query(`
-        UPDATE prestamos SET 
-          monto_aprobado = $1, 
-          balance_pendiente = $2, 
-          cuota_mensual = $3,
-          fecha_proximo_pago = $4, 
-          tipo_frecuencia = $5, 
-          total_cuotas = $6, 
-          tasa_interes = $7,
-          metodo_desembolso = $8, 
-          banco_nombre = $9, 
-          numero_cuenta = $10
-        WHERE numero_prestamo = $11
-      `, [
-        monto, balanceTotal, cuotaMensualEstimada,
-        fechaProximoPago, frecuencia, cuotasNum, interes,
-        metodo_desembolso, banco_nombre, numero_cuenta,
-        numero_prestamo
-      ]);
-
-      // 8. Borrar cuotas viejas e insertar nuevas
-      await client.query(`DELETE FROM cuotas WHERE numero_prestamo = $1`, [numero_prestamo]);
-
-      for (const c of calendario) {
-        await client.query(`
-          INSERT INTO cuotas (
-            numero_prestamo, cedula, numero_cuota, monto_cuota, monto_capital, monto_interes, fecha_vencimiento, estado
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        `, [
-          numero_prestamo, prestamo.cedula, c.numero_cuota, c.monto_cuota, c.monto_capital, c.monto_interes,
-          c.fecha_vencimiento.toISOString().split('T')[0], 'pendiente'
-        ]);
-      }
-
-      await client.query('COMMIT');
-
-      // 9. Auditoría
-      try {
-        const { registrarAuditoria } = await import('@/lib/audit');
-        await registrarAuditoria({
-          tabla: 'prestamos',
-          accion: 'UPDATE',
-          registro_id: numero_prestamo,
-          datos_anteriores: {
-            monto_aprobado: prestamo.monto_aprobado,
-            tasa_interes: prestamo.tasa_interes,
-            total_cuotas: prestamo.total_cuotas
-          },
-          datos_nuevos: { 
-            monto_aprobado: monto, 
-            tasa_interes: interes, 
-            total_cuotas: cuotasNum, 
-            frecuencia 
-          },
-          usuario: user
-        });
-      } catch (e) {
-        console.error("Auditoría falló en actualización de préstamo", e);
-      }
-
-      return NextResponse.json({ success: true, message: "Préstamo actualizado correctamente." });
-    } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw err;
-    } finally {
-      client.release();
+    // 6. Ajustar el capital prestado del cliente
+    // Restamos el viejo monto y sumamos el nuevo
+    const diffMonto = monto - parseFloat(prestamo.monto_aprobado);
+    if (diffMonto !== 0) {
+      await query(`
+        UPDATE clientes 
+        SET capital_prestado = capital_prestado + $1 
+        WHERE cedula = $2
+      `, [diffMonto, prestamo.cedula]);
     }
+
+    // 7. Actualizar el prÃ©stamo
+    await query(`
+      UPDATE prestamos SET 
+        monto_aprobado = $1, 
+        balance_pendiente = $2, 
+        cuota_mensual = $3,
+        fecha_proximo_pago = $4, 
+        tipo_frecuencia = $5, 
+        total_cuotas = $6, 
+        tasa_interes = $7,
+        metodo_desembolso = $8, 
+        banco_nombre = $9, 
+        numero_cuenta = $10
+      WHERE numero_prestamo = $11
+    `, [
+      monto, balanceTotal, cuotaMensualEstimada,
+      fechaProximoPago, frecuencia, cuotasNum, interes,
+      metodo_desembolso, banco_nombre, numero_cuenta,
+      numero_prestamo
+    ]);
+
+    // 8. Borrar cuotas viejas e insertar nuevas
+    await query(`DELETE FROM cuotas WHERE numero_prestamo = $1`, [numero_prestamo]);
+
+    for (const c of calendario) {
+      await query(`
+        INSERT INTO cuotas (
+          numero_prestamo, cedula, numero_cuota, monto_cuota, monto_capital, monto_interes, fecha_vencimiento, estado
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [
+        numero_prestamo, prestamo.cedula, c.numero_cuota, c.monto_cuota, c.monto_capital, c.monto_interes,
+        c.fecha_vencimiento.toISOString().split('T')[0], 'pendiente'
+      ]);
+    }
+
+    await query('COMMIT');
+
+    // 9. AuditorÃ­a
+    try {
+      const { registrarAuditoria } = await import('@/lib/audit');
+      await registrarAuditoria({
+        tabla: 'prestamos',
+        accion: 'UPDATE',
+        registro_id: numero_prestamo,
+        datos_anteriores: {
+          monto_aprobado: prestamo.monto_aprobado,
+          tasa_interes: prestamo.tasa_interes,
+          total_cuotas: prestamo.total_cuotas
+        },
+        datos_nuevos: { 
+          monto_aprobado: monto, 
+          tasa_interes: interes, 
+          total_cuotas: cuotasNum, 
+          frecuencia 
+        },
+        usuario: user
+      });
+    } catch (e) {
+      console.error("AuditorÃ­a fallÃ³ en actualizaciÃ³n de prÃ©stamo", e);
+    }
+
+    return NextResponse.json({ success: true, message: "PrÃ©stamo actualizado correctamente." });
+
   } catch (err) {
+    await query('ROLLBACK');
     console.error("Loans PUT API error:", err);
-    return NextResponse.json({ error: "Error interno al actualizar el préstamo." }, { status: 500 });
+    return NextResponse.json({ error: "Error interno al actualizar el prÃ©stamo." }, { status: 500 });
   }
 }

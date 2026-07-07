@@ -1,20 +1,8 @@
-import { NextResponse } from 'next/server';
-import pool, { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
+﻿import { NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 import { generarCalendarioCuotas } from '@/lib/cuotas';
 import { getConfig } from '@/lib/config';
-
-async function getCurrentUser(request) {
-  try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) return null;
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload;
-  } catch (err) {
-    return null;
-  }
-}
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request) {
   try {
@@ -65,7 +53,7 @@ export async function GET(request) {
 
     const user = await getCurrentUser(request);
     if (user && user.rol !== 'admin') {
-      // Colaboradores ven todos los préstamos activos y atrasados (no los ya pagados)
+      // Colaboradores ven todos los prÃ©stamos activos y atrasados (no los ya pagados)
       whereClause.push(`p.estado != 'pagado'`);
     }
 
@@ -102,7 +90,7 @@ export async function GET(request) {
     });
   } catch (err) {
     console.error("Loans GET API error:", err);
-    return NextResponse.json({ error: "Error de base de datos al buscar préstamos." }, { status: 500 });
+    return NextResponse.json({ error: "Error de base de datos al buscar prÃ©stamos." }, { status: 500 });
   }
 }
 
@@ -124,7 +112,7 @@ export async function POST(request) {
       numero_cuenta
     } = body;
 
-    if (!cedula) return NextResponse.json({ error: "Cédula es requerida." }, { status: 400 });
+    if (!cedula) return NextResponse.json({ error: "CÃ©dula es requerida." }, { status: 400 });
     
     // Check client exists
     const checkClient = await query("SELECT nombre FROM clientes WHERE cedula = $1", [cedula]);
@@ -134,7 +122,7 @@ export async function POST(request) {
 
     const monto = parseFloat(monto_aprobado);
     if (isNaN(monto) || monto <= 0) {
-      return NextResponse.json({ error: "Monto inválido." }, { status: 400 });
+      return NextResponse.json({ error: "Monto invÃ¡lido." }, { status: 400 });
     }
 
     const min = parseFloat(await getConfig('monto_minimo', 1000));
@@ -149,7 +137,7 @@ export async function POST(request) {
 
     const cuotasNum = parseInt(total_cuotas);
     if (isNaN(cuotasNum) || cuotasNum <= 0) {
-      return NextResponse.json({ error: "Cantidad de cuotas inválida." }, { status: 400 });
+      return NextResponse.json({ error: "Cantidad de cuotas invÃ¡lida." }, { status: 400 });
     }
 
     const interes = parseFloat(tasa_interes) || 0.05;
@@ -186,75 +174,68 @@ export async function POST(request) {
     `);
 
     // Transaction
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      
-      await client.query(`
-        INSERT INTO prestamos (
-          cedula, numero_prestamo, monto_aprobado, balance_pendiente, cuota_mensual,
-          fecha_proximo_pago, estado, tipo_frecuencia, total_cuotas, tasa_interes, registrado_por,
-          metodo_desembolso, banco_nombre, numero_cuenta
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    await query('BEGIN');
+    
+    await query(`
+      INSERT INTO prestamos (
+        cedula, numero_prestamo, monto_aprobado, balance_pendiente, cuota_mensual,
+        fecha_proximo_pago, estado, tipo_frecuencia, total_cuotas, tasa_interes, registrado_por,
+        metodo_desembolso, banco_nombre, numero_cuenta
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    `, [
+      cedula, generatedLoanNumber, monto, balanceTotal, cuotaMensualEstimada,
+      fechaProximoPago, 'activo', frecuencia || 'mensual', cuotasNum, interes, registradoPor,
+      metodo_desembolso || 'efectivo', banco_nombre || null, numero_cuenta || null
+    ]);
+
+    // Update total loans on client
+    await query(
+      "UPDATE clientes SET total_prestamos = total_prestamos + 1, capital_prestado = capital_prestado + $1 WHERE cedula = $2",
+      [monto, cedula]
+    );
+
+    // Insert Cuotas
+    for (const c of calendario) {
+      await query(`
+        INSERT INTO cuotas (
+          numero_prestamo, cedula, numero_cuota, monto_cuota, monto_capital, monto_interes, fecha_vencimiento, estado
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `, [
-        cedula, generatedLoanNumber, monto, balanceTotal, cuotaMensualEstimada,
-        fechaProximoPago, 'activo', frecuencia || 'mensual', cuotasNum, interes, registradoPor,
-        metodo_desembolso || 'efectivo', banco_nombre || null, numero_cuenta || null
+        generatedLoanNumber, cedula, c.numero_cuota, c.monto_cuota, c.monto_capital, c.monto_interes,
+        c.fecha_vencimiento.toISOString().split('T')[0], 'pendiente'
       ]);
-
-      // Update total loans on client
-      await client.query(
-        "UPDATE clientes SET total_prestamos = total_prestamos + 1, capital_prestado = capital_prestado + $1 WHERE cedula = $2",
-        [monto, cedula]
-      );
-
-      // Insert Cuotas
-      for (const c of calendario) {
-        await client.query(`
-          INSERT INTO cuotas (
-            numero_prestamo, cedula, numero_cuota, monto_cuota, monto_capital, monto_interes, fecha_vencimiento, estado
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        `, [
-          generatedLoanNumber, cedula, c.numero_cuota, c.monto_cuota, c.monto_capital, c.monto_interes,
-          c.fecha_vencimiento.toISOString().split('T')[0], 'pendiente'
-        ]);
-      }
-
-      await client.query('COMMIT');
-
-      // Auditoria
-      try {
-        const { registrarAuditoria } = await import('@/lib/audit');
-        await registrarAuditoria({
-          tabla: 'prestamos',
-          accion: 'INSERT',
-          registro_id: generatedLoanNumber,
-          datos_nuevos: { 
-            cedula, 
-            monto_aprobado, 
-            frecuencia, 
-            total_cuotas, 
-            metodo_desembolso: metodo_desembolso || 'efectivo', 
-            banco_nombre: banco_nombre || null, 
-            numero_cuenta: numero_cuenta || null 
-          },
-          usuario: user
-        });
-      } catch (e) {}
-
-      return NextResponse.json({
-        success: true,
-        message: "Préstamo creado correctamente.",
-        data: { numero_prestamo: generatedLoanNumber }
-      });
-    } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
-      throw err;
-    } finally {
-      client.release();
     }
+
+    await query('COMMIT');
+
+    // Auditoria
+    try {
+      const { registrarAuditoria } = await import('@/lib/audit');
+      await registrarAuditoria({
+        tabla: 'prestamos',
+        accion: 'INSERT',
+        registro_id: generatedLoanNumber,
+        datos_nuevos: { 
+          cedula, 
+          monto_aprobado, 
+          frecuencia, 
+          total_cuotas, 
+          metodo_desembolso: metodo_desembolso || 'efectivo', 
+          banco_nombre: banco_nombre || null, 
+          numero_cuenta: numero_cuenta || null 
+        },
+        usuario: user
+      });
+    } catch (e) {}
+
+    return NextResponse.json({
+      success: true,
+      message: "PrÃ©stamo creado correctamente.",
+      data: { numero_prestamo: generatedLoanNumber }
+    });
   } catch (err) {
+    await query('ROLLBACK');
     console.error("Loans POST API error:", err);
-    return NextResponse.json({ error: "Error al crear el préstamo." }, { status: 500 });
+    return NextResponse.json({ error: "Error al crear el prÃ©stamo." }, { status: 500 });
   }
 }

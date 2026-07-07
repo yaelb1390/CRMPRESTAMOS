@@ -1,18 +1,6 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
-
-async function getCurrentUser(request) {
-  try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) return null;
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload;
-  } catch (err) {
-    return null;
-  }
-}
+import { getCurrentUser } from '@/lib/auth';
 
 
 
@@ -32,12 +20,12 @@ export async function GET(request, { params }) {
       FROM clientes WHERE cedula = $1
     `, [cedula]);
     if (clientRes.rows.length === 0) {
-      return NextResponse.json({ error: "No se encontró ningún cliente con esa cédula." }, { status: 404 });
+      return NextResponse.json({ error: "No se encontrÃ³ ningÃºn cliente con esa cÃ©dula." }, { status: 404 });
     }
 
     const clientData = clientRes.rows[0];
 
-    // 2. Obtener lista de préstamos del cliente
+    // 2. Obtener lista de prÃ©stamos del cliente
     const loansRes = await query(`
       SELECT 
         numero_prestamo, monto_aprobado, balance_pendiente, cuota_mensual, 
@@ -90,7 +78,7 @@ export async function PUT(request, { params }) {
     // Check if client exists
     const checkRes = await query("SELECT * FROM clientes WHERE cedula = $1", [cedula]);
     if (checkRes.rows.length === 0) {
-      return NextResponse.json({ error: "No se encontró ningún cliente con esta cédula." }, { status: 404 });
+      return NextResponse.json({ error: "No se encontrÃ³ ningÃºn cliente con esta cÃ©dula." }, { status: 404 });
     }
 
     const oldData = checkRes.rows[0];
@@ -125,7 +113,7 @@ export async function PUT(request, { params }) {
       cedula
     ]);
 
-    // Auditoría
+    // AuditorÃ­a
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -137,7 +125,7 @@ export async function PUT(request, { params }) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditoría:", e);
+      console.error("Error en auditorÃ­a:", e);
     }
 
     return NextResponse.json({
@@ -162,7 +150,7 @@ export async function DELETE(request, { params }) {
 
     const checkRes = await query("SELECT * FROM clientes WHERE cedula = $1", [cedula]);
     if (checkRes.rows.length === 0) {
-      return NextResponse.json({ error: "No se encontró ningún cliente con esta cédula." }, { status: 404 });
+      return NextResponse.json({ error: "No se encontrÃ³ ningÃºn cliente con esta cÃ©dula." }, { status: 404 });
     }
 
     const oldData = checkRes.rows[0];
@@ -170,12 +158,12 @@ export async function DELETE(request, { params }) {
     // Check if client has active loans
     const loansRes = await query("SELECT id FROM prestamos WHERE cedula = $1 AND estado != 'pagado'", [cedula]);
     if (loansRes.rows.length > 0) {
-      return NextResponse.json({ error: "No se puede eliminar un cliente con préstamos activos." }, { status: 400 });
+      return NextResponse.json({ error: "No se puede eliminar un cliente con prÃ©stamos activos." }, { status: 400 });
     }
 
     await query("DELETE FROM clientes WHERE cedula = $1", [cedula]);
 
-    // Auditoría
+    // AuditorÃ­a
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -186,7 +174,7 @@ export async function DELETE(request, { params }) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditoría:", e);
+      console.error("Error en auditorÃ­a:", e);
     }
 
     return NextResponse.json({

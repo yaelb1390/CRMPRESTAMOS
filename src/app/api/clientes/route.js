@@ -1,18 +1,6 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
-
-async function getCurrentUser(request) {
-  try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) return null;
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload;
-  } catch (err) {
-    return null;
-  }
-}
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request) {
   try {
@@ -33,22 +21,15 @@ export async function GET(request) {
       paramIndex++;
     }
 
-    const clasificacion = searchParams.get('clasificacion');
-    if (clasificacion) {
-      whereClause.push(`clasificacion = $${paramIndex}`);
-      params.push(clasificacion);
-      paramIndex++;
-    }
-
     if (tab === 'historicos') {
 
-      // Clientes sin préstamos activos
+      // Clientes sin prÃ©stamos activos
       whereClause.push(`
         cedula NOT IN (SELECT cedula FROM prestamos WHERE estado != 'pagado')
         AND prestamos_liquidados > 0
       `);
     } else {
-      // Clientes con préstamos activos o recién creados sin préstamos
+      // Clientes con prÃ©stamos activos o reciÃ©n creados sin prÃ©stamos
       whereClause.push(`
         (cedula IN (SELECT cedula FROM prestamos WHERE estado != 'pagado')
         OR total_prestamos = 0)
@@ -57,7 +38,7 @@ export async function GET(request) {
 
     const user = await getCurrentUser(request);
     if (user && user.rol !== 'admin') {
-      // Colaboradores ven clientes con préstamos activos o atrasados (no pagados)
+      // Colaboradores ven clientes con prÃ©stamos activos o atrasados (no pagados)
       whereClause.push(`
         cedula IN (
           SELECT cedula FROM prestamos 
@@ -130,7 +111,7 @@ export async function POST(request) {
 
     // 1. Validation
     if (!cedula || !/^\d{11}$/.test(cedula)) {
-      return NextResponse.json({ error: "La cédula debe contener exactamente 11 dígitos numéricos." }, { status: 400 });
+      return NextResponse.json({ error: "La cÃ©dula debe contener exactamente 11 dÃ­gitos numÃ©ricos." }, { status: 400 });
     }
 
     if (!nombre || nombre.trim().length < 3 || nombre.trim().length > 100) {
@@ -140,7 +121,7 @@ export async function POST(request) {
     // 2. Check duplicate cedula
     const checkCedula = await query("SELECT id FROM clientes WHERE cedula = $1", [cedula]);
     if (checkCedula.rows.length > 0) {
-      return NextResponse.json({ error: "Ya existe un cliente registrado con esta cédula" }, { status: 409 });
+      return NextResponse.json({ error: "Ya existe un cliente registrado con esta cÃ©dula" }, { status: 409 });
     }
 
     // 3. Insert Client
@@ -159,7 +140,7 @@ export async function POST(request) {
       email || null
     ]);
 
-    // Auditoría
+    // AuditorÃ­a
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -170,7 +151,7 @@ export async function POST(request) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditoría:", e);
+      console.error("Error en auditorÃ­a:", e);
     }
 
     return NextResponse.json({
@@ -183,4 +164,3 @@ export async function POST(request) {
     return NextResponse.json({ error: "Error de base de datos al guardar el cliente." }, { status: 500 });
   }
 }
-

@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { requireAdmin } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request) {
+  const { errorResponse } = await requireAdmin(request);
+  if (errorResponse) return errorResponse;
+
   try {
     // Asegurar que la columna permisos exista en usuarios (self-healing)
     await query(`
@@ -11,7 +15,7 @@ export async function GET() {
     const res = await query("SELECT id, username, nombre, rol, permisos, created_at FROM usuarios ORDER BY id ASC");
     return NextResponse.json({ data: res.rows.map(row => ({
       ...row,
-      permisos: Array.isArray(row.permisos) ? row.permisos : (typeof row.permisos === 'string' ? JSON.parse(row.permisos || '[]') : [])
+      permisos: Array.isArray(row.permisos) ? row.permisos : []
     })) });
   } catch (err) {
     return NextResponse.json({ error: "Error al obtener usuarios" }, { status: 500 });
@@ -19,6 +23,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const { errorResponse } = await requireAdmin(request);
+  if (errorResponse) return errorResponse;
+
   try {
     const body = await request.json();
     const { username, password, nombre, rol, permisos } = body;

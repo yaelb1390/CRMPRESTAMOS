@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
+import { getSecretKey } from '@/lib/auth';
 
 export async function POST(request) {
   try {
@@ -14,18 +15,18 @@ export async function POST(request) {
 
     const res = await query("SELECT * FROM usuarios WHERE username = $1", [username]);
     if (res.rows.length === 0) {
-      return NextResponse.json({ error: "Credenciales inválidas." }, { status: 401 });
+      return NextResponse.json({ error: "Credenciales invÃ¡lidas." }, { status: 401 });
     }
 
     const user = res.rows[0];
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
     
     if (!passwordMatch) {
-      return NextResponse.json({ error: "Credenciales inválidas." }, { status: 401 });
+      return NextResponse.json({ error: "Credenciales invÃ¡lidas." }, { status: 401 });
     }
 
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    
+    const secretKey = getSecretKey();
+
     const token = await new SignJWT({
       id: user.id,
       username: user.username,
@@ -54,6 +55,6 @@ export async function POST(request) {
     return response;
   } catch (err) {
     console.error("Login API error:", err);
-    return NextResponse.json({ error: "Error en el servidor al iniciar sesión. Detalles: " + String(err) + " | " + (err?.stack || "") }, { status: 500 });
+    return NextResponse.json({ error: "Error en el servidor al iniciar sesiÃ³n." }, { status: 500 });
   }
 }

@@ -1,26 +1,14 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import { jwtVerify } from 'jose';
-
-async function getCurrentUser(request) {
-  try {
-    const token = request.cookies.get('auth_token')?.value;
-    if (!token) return null;
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload;
-  } catch (err) {
-    return null;
-  }
-}
+import { getCurrentUser } from '@/lib/auth';
 
 export async function GET(request) {
   try {
     const user = await getCurrentUser(request);
     
-    // Solo admins pueden ver auditoría
+    // Solo admins pueden ver auditorÃ­a
     if (!user || user.rol !== 'admin') {
-      return NextResponse.json({ error: "Acceso denegado. Solo administradores pueden ver los registros de auditoría." }, { status: 403 });
+      return NextResponse.json({ error: "Acceso denegado. Solo administradores pueden ver los registros de auditorÃ­a." }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -47,6 +35,6 @@ export async function GET(request) {
     });
   } catch (err) {
     console.error("GET auditoria API error:", err);
-    return NextResponse.json({ error: "Error al obtener los registros de auditoría." }, { status: 500 });
+    return NextResponse.json({ error: "Error al obtener los registros de auditorÃ­a." }, { status: 500 });
   }
 }

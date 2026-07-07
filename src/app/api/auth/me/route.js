@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
-
-export const dynamic = 'force-dynamic';
+import { getSecretKey } from '@/lib/auth';
 
 export async function GET(request) {
   const token = request.cookies.get('auth_token')?.value;
@@ -12,15 +11,14 @@ export async function GET(request) {
   }
 
   try {
-    const secretKey = new TextEncoder().encode(process.env.JWT_SECRET || 'super_secret_jwt_key_12345');
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, getSecretKey());
 
     // Asegurar que la columna permisos exista en usuarios (self-healing)
     await query(`
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '[]'
     `);
 
-    // Consultar dinámicamente el usuario para obtener permisos y rol actualizados en tiempo real
+    // Consultar dinÃ¡micamente el usuario para obtener permisos y rol actualizados en tiempo real
     const dbUserRes = await query("SELECT id, username, nombre, rol, permisos FROM usuarios WHERE id = $1", [payload.id]);
     
     if (dbUserRes.rows.length === 0) {
@@ -35,7 +33,7 @@ export async function GET(request) {
         username: dbUser.username,
         nombre: dbUser.nombre,
         rol: dbUser.rol,
-        permisos: Array.isArray(dbUser.permisos) ? dbUser.permisos : (typeof dbUser.permisos === 'string' ? JSON.parse(dbUser.permisos || '[]') : [])
+        permisos: Array.isArray(dbUser.permisos) ? dbUser.permisos : []
       } 
     });
   } catch (error) {
