@@ -1,8 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function AuditoriaPage() {
   const { showToast } = useToast();
@@ -17,11 +18,11 @@ export default function AuditoriaPage() {
   const limit = 50;
 
   useEffect(() => {
-    fetch('/api/auth/me', { cache: 'no-store' })
+    apiFetch('/api/auth/me')
       .then(res => res.json())
       .then(data => {
         if (!data.user || data.user.rol !== 'admin') {
-          showToast('No tienes permisos para ver esta página.', 'error');
+          showToast('No tienes permisos para ver esta pÃ¡gina.', 'error');
           router.push('/dashboard');
         } else {
           setUser(data.user);
@@ -34,7 +35,7 @@ export default function AuditoriaPage() {
     try {
       setLoading(true);
       const offset = (page - 1) * limit;
-      const res = await fetch(`/api/auditoria?limit=${limit}&offset=${offset}`);
+      const res = await apiFetch(`/api/auditoria?limit=${limit}&offset=${offset}`);
       if (res.ok) {
         const json = await res.json();
         setLogs(json.data || []);
@@ -44,7 +45,7 @@ export default function AuditoriaPage() {
         showToast(data.error || 'Error al cargar los logs', 'error');
       }
     } catch (err) {
-      showToast('Error de conexión', 'error');
+      showToast('Error de conexiÃ³n', 'error');
     } finally {
       setLoading(false);
     }
@@ -68,9 +69,9 @@ export default function AuditoriaPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Registro de Auditoría</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Registro de AuditorÃ­a</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Historial de acciones críticas en el sistema
+          Historial de acciones crÃ­ticas en el sistema
         </p>
       </div>
 
@@ -87,7 +88,7 @@ export default function AuditoriaPage() {
                   <tr>
                     <th>Fecha</th>
                     <th>Usuario</th>
-                    <th>Acción</th>
+                    <th>AcciÃ³n</th>
                     <th>Tabla</th>
                     <th>ID Registro</th>
                     <th>Detalles</th>
@@ -110,7 +111,7 @@ export default function AuditoriaPage() {
                           <summary style={{ cursor: 'pointer', color: 'var(--primary)' }}>Ver Datos</summary>
                           <div style={{ marginTop: '8px', background: '#f8fafc', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
                             {log.datos_anteriores && <div><b>Antes:</b> <pre style={{ margin: 0 }}>{JSON.stringify(log.datos_anteriores, null, 2)}</pre></div>}
-                            {log.datos_nuevos && <div><b>Después:</b> <pre style={{ margin: 0 }}>{JSON.stringify(log.datos_nuevos, null, 2)}</pre></div>}
+                            {log.datos_nuevos && <div><b>DespuÃ©s:</b> <pre style={{ margin: 0 }}>{JSON.stringify(log.datos_nuevos, null, 2)}</pre></div>}
                           </div>
                         </details>
                       </td>
@@ -120,18 +121,18 @@ export default function AuditoriaPage() {
               </table>
             </div>
             <div className="pagination-container">
-              <span className="pagination-info">Página <b>{page}</b> de <b>{totalPages}</b> ({totalRecords} registros)</span>
+              <span className="pagination-info">PÃ¡gina <b>{page}</b> de <b>{totalPages}</b> ({totalRecords} registros)</span>
               <div className="pagination-buttons">
-                <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>◀️ Anterior</button>
-                <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Siguiente ▶️</button>
+                <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>â—€ï¸ Anterior</button>
+                <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Siguiente â–¶ï¸</button>
               </div>
             </div>
           </>
         ) : (
           <div className="empty-state">
-            <div className="empty-state-icon">📋</div>
+            <div className="empty-state-icon">ðŸ“‹</div>
             <div className="empty-state-title">No hay registros</div>
-            <div className="empty-state-desc">Aún no se han registrado acciones auditables en el sistema.</div>
+            <div className="empty-state-desc">AÃºn no se han registrado acciones auditables en el sistema.</div>
           </div>
         )}
       </section>

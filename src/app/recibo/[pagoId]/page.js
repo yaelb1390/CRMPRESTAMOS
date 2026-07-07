@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function ReciboImprimiblePage() {
   const { pagoId } = useParams();
@@ -14,7 +15,7 @@ export default function ReciboImprimiblePage() {
     const fetchPago = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/pagos/${pagoId}`);
+        const res = await apiFetch(`/api/pagos/${pagoId}`);
         if (res.ok) {
           const json = await res.json();
           setPago(json.data);
@@ -67,19 +68,19 @@ export default function ReciboImprimiblePage() {
   const handleSendEmail = async () => {
     try {
       setSendingEmail(true);
-      const res = await fetch('/api/correos/factura', {
+      const res = await apiFetch('/api/correos/factura', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pagoId })
       });
       const data = await res.json();
       if (res.ok) {
-        alert('✅ ¡Factura enviada por correo exitosamente!');
+        alert('âœ… Â¡Factura enviada por correo exitosamente!');
       } else {
-        alert('❌ Error: ' + (data.error || 'No se pudo enviar el correo.'));
+        alert('âŒ Error: ' + (data.error || 'No se pudo enviar el correo.'));
       }
     } catch (err) {
-      alert('❌ Error de red al intentar enviar el correo.');
+      alert('âŒ Error de red al intentar enviar el correo.');
     } finally {
       setSendingEmail(false);
     }
@@ -159,7 +160,7 @@ export default function ReciboImprimiblePage() {
         borderBottom: '1px solid #D8E2EF' 
       }}>
         <span style={{ fontSize: '13px', color: '#5A6B82', alignSelf: 'center' }}>
-          Vista previa del recibo oficial. Pulse el botón para imprimir o guardar.
+          Vista previa del recibo oficial. Pulse el botÃ³n para imprimir o guardar.
         </span>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button 
@@ -177,7 +178,7 @@ export default function ReciboImprimiblePage() {
               opacity: sendingEmail ? 0.7 : 1
             }}
           >
-            {sendingEmail ? '⏳ Enviando...' : '📧 Enviar por Correo'}
+            {sendingEmail ? 'â³ Enviando...' : 'ðŸ“§ Enviar por Correo'}
           </button>
           <button 
             onClick={() => window.print()}
@@ -192,7 +193,7 @@ export default function ReciboImprimiblePage() {
               fontSize: '13px'
             }}
           >
-            🖨️ Imprimir Recibo (Ctrl + P)
+            ðŸ–¨ï¸ Imprimir Recibo (Ctrl + P)
           </button>
         </div>
       </div>
@@ -218,7 +219,7 @@ export default function ReciboImprimiblePage() {
         
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '12px', color: '#5A6B82', textTransform: 'uppercase', fontWeight: '700', marginBottom: '4px' }}>
-            Comprobante N°
+            Comprobante NÂ°
           </div>
           <div style={{ fontSize: '20px', fontWeight: '800', color: '#B71C1C' }}>
             {String(pago.id).padStart(6, '0')}
@@ -247,15 +248,15 @@ export default function ReciboImprimiblePage() {
           <span style={{ fontWeight: '600' }}>{pago.nombre_cliente}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F0F4F8', paddingBottom: '8px', marginBottom: '8px' }}>
-          <span style={{ color: '#5A6B82' }}>Cédula:</span>
+          <span style={{ color: '#5A6B82' }}>CÃ©dula:</span>
           <span style={{ fontWeight: '600', fontFamily: 'monospace' }}>{pago.cedula}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #F0F4F8', paddingBottom: '8px', marginBottom: '8px' }}>
-          <span style={{ color: '#5A6B82' }}>Número de Préstamo:</span>
+          <span style={{ color: '#5A6B82' }}>NÃºmero de PrÃ©stamo:</span>
           <span style={{ fontWeight: '600', color: '#1E3A5F' }}>{pago.numero_prestamo}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ color: '#5A6B82' }}>Método de Pago:</span>
+          <span style={{ color: '#5A6B82' }}>MÃ©todo de Pago:</span>
           <span style={{ fontWeight: '600', textTransform: 'uppercase' }}>{pago.metodo_pago}</span>
         </div>
       </div>
@@ -275,7 +276,7 @@ export default function ReciboImprimiblePage() {
         </thead>
         <tbody>
           <tr style={{ borderBottom: '1px solid #F0F4F8' }}>
-            <td style={{ padding: '12px 0' }}>Pago de Cuota / Amortización Préstamo</td>
+            <td style={{ padding: '12px 0' }}>Pago de Cuota / AmortizaciÃ³n PrÃ©stamo</td>
             <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: '600' }}>{formatCurrency(pago.monto_pagado)}</td>
           </tr>
           <tr style={{ borderBottom: '1px solid #F0F4F8' }}>

@@ -1,20 +1,21 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '@/lib/apiFetch';
 
 function PrestamosContent() {
   const { showToast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+
   const cedulaParam = searchParams.get('cedula');
-  const estadoParam = searchParams.get('estado');
 
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [estadoFilter, setEstadoFilter] = useState(estadoParam || '');
+  const [estadoFilter, setEstadoFilter] = useState('');
   const [diasMinFilter, setDiasMinFilter] = useState('');
   const [fechaDesde, setFechaDesde] = useState('');
   const [fechaHasta, setFechaHasta] = useState('');
@@ -42,7 +43,7 @@ function PrestamosContent() {
     numero_cuenta: ''
   });
 
-  // ── Cálculo automático en tiempo real ──────────────────────────────────────
+  // â”€â”€ CÃ¡lculo automÃ¡tico en tiempo real â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const calculo = useMemo(() => {
     const monto     = parseFloat(formValues.monto_aprobado) || 0;
     const tasaPct   = parseFloat(formValues.tasa_interes)   || 0;
@@ -59,7 +60,7 @@ function PrestamosContent() {
 
     return { montoInteres, totalAPagar, cuotaEstimada, tasaDecimal };
   }, [formValues.monto_aprobado, formValues.tasa_interes, formValues.total_cuotas]);
-  // ───────────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   const fetchLoans = async () => {
     try {
@@ -70,12 +71,12 @@ function PrestamosContent() {
       if (fechaDesde)    params.set('fecha_desde', fechaDesde);
       if (fechaHasta)    params.set('fecha_hasta', fechaHasta);
 
-      const res = await fetch(`/api/prestamos?${params.toString()}`);
+      const res = await apiFetch(`/api/prestamos?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
         setLoans(json.data || []);
       } else {
-        showToast('Error al obtener la lista de préstamos.', 'error');
+        showToast('Error al obtener la lista de prÃ©stamos.', 'error');
       }
     } catch (err) {
       showToast('No se pudo conectar a la base de datos.', 'error');
@@ -90,15 +91,9 @@ function PrestamosContent() {
     fetchCurrentUser();
   }, [estadoFilter, diasMinFilter, fechaDesde, fechaHasta]);
 
-  useEffect(() => {
-    if (estadoParam !== null && estadoParam !== estadoFilter) {
-      setEstadoFilter(estadoParam);
-    }
-  }, [estadoParam]);
-
   const fetchCurrentUser = async () => {
     try {
-      const res = await fetch('/api/auth/me', { cache: 'no-store' });
+      const res = await apiFetch('/api/auth/me');
       if (res.ok) {
         const json = await res.json();
         setCurrentUser(json.user);
@@ -108,7 +103,7 @@ function PrestamosContent() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch('/api/configuracion');
+      const res = await apiFetch('/api/configuracion');
       if (res.ok) {
         const json = await res.json();
         const configMap = {};
@@ -149,11 +144,11 @@ function PrestamosContent() {
       return;
     }
     if (calculo.totalAPagar <= 0) {
-      showToast('Ingrese un monto válido mayor a cero.', 'error');
+      showToast('Ingrese un monto vÃ¡lido mayor a cero.', 'error');
       return;
     }
     if (formValues.metodo_desembolso === 'banco' && (!formValues.banco_nombre || !formValues.numero_cuenta)) {
-      showToast('Debe ingresar el banco y número de cuenta para transferencia.', 'error');
+      showToast('Debe ingresar el banco y nÃºmero de cuenta para transferencia.', 'error');
       return;
     }
 
@@ -177,14 +172,14 @@ function PrestamosContent() {
         ...formValues,
         tasa_interes: calculo.tasaDecimal   // Convertir de porcentaje a decimal para la API
       };
-      const res = await fetch('/api/prestamos', {
+      const res = await apiFetch('/api/prestamos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Préstamo ${data.data?.numero_prestamo} creado correctamente`, 'success');
+        showToast(`PrÃ©stamo ${data.data?.numero_prestamo} creado correctamente`, 'success');
         setShowAddModal(false);
         setFormValues({
           cedula: '', monto_aprobado: '', frecuencia: 'mensual',
@@ -236,7 +231,7 @@ function PrestamosContent() {
 
   const executeEditSubmit = async () => {
     if (calculo.totalAPagar <= 0) {
-      showToast('Ingrese un monto válido mayor a cero.', 'error');
+      showToast('Ingrese un monto vÃ¡lido mayor a cero.', 'error');
       return;
     }
 
@@ -260,14 +255,14 @@ function PrestamosContent() {
         ...formValues,
         tasa_interes: calculo.tasaDecimal
       };
-      const res = await fetch(`/api/prestamos/${encodeURIComponent(editingLoan.numero_prestamo)}`, {
+      const res = await apiFetch(`/api/prestamos/${encodeURIComponent(editingLoan.numero_prestamo)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
-        showToast('Préstamo actualizado correctamente', 'success');
+        showToast('PrÃ©stamo actualizado correctamente', 'success');
         setShowEditModal(false);
         setEditingLoan(null);
         fetchLoans();
@@ -298,12 +293,12 @@ function PrestamosContent() {
   const handleExportXLSX = () => {
     if (!loans.length) { showToast('No hay datos para exportar', 'error'); return; }
     const ws = XLSX.utils.json_to_sheet(loans.map(l => ({
-      'Préstamo': l.numero_prestamo, 'Cliente': l.nombre_cliente, 'Cédula': l.cedula,
+      'PrÃ©stamo': l.numero_prestamo, 'Cliente': l.nombre_cliente, 'CÃ©dula': l.cedula,
       'Monto': l.monto_aprobado, 'Balance': l.balance_pendiente,
       'Frecuencia': l.tipo_frecuencia, 'Estado': l.estado
     })));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Préstamos');
+    XLSX.utils.book_append_sheet(wb, ws, 'PrÃ©stamos');
     XLSX.writeFile(wb, 'prestamos.xlsx');
   };
 
@@ -311,15 +306,15 @@ function PrestamosContent() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1>Módulo de Préstamos</h1>
+          <h1>MÃ³dulo de PrÃ©stamos</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Listado y administración de préstamos y calendarios de pago
+            Listado y administraciÃ³n de prÃ©stamos y calendarios de pago
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-secondary" onClick={handleExportXLSX}>📥 Exportar</button>
+          <button className="btn btn-secondary" onClick={handleExportXLSX}>ðŸ“¥ Exportar</button>
           <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-            <span>➕</span> Otorgar Préstamo
+            <span>âž•</span> Otorgar PrÃ©stamo
           </button>
         </div>
       </div>
@@ -336,7 +331,7 @@ function PrestamosContent() {
           </select>
         </div>
         <div className="filter-item" style={{ width: '160px' }}>
-          <label>Días mín. atraso</label>
+          <label>DÃ­as mÃ­n. atraso</label>
           <input type="number" className="form-control" value={diasMinFilter}
             onChange={(e) => setDiasMinFilter(e.target.value)} placeholder="Ej. 30" />
         </div>
@@ -364,10 +359,10 @@ function PrestamosContent() {
               <thead>
                 <tr>
                   <th>Cliente</th>
-                  <th>Cédula</th>
-                  <th># Préstamo</th>
+                  <th>CÃ©dula</th>
+                  <th># PrÃ©stamo</th>
                   <th>Monto Aprobado</th>
-                  <th>Total c/Interés</th>
+                  <th>Total c/InterÃ©s</th>
                   <th>Balance Pendiente</th>
                   <th>Cuota</th>
                   <th>Frecuencia</th>
@@ -388,11 +383,11 @@ function PrestamosContent() {
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                           {loan.metodo_desembolso === 'banco' ? (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              🏦 <b>{loan.banco_nombre}</b>: {loan.numero_cuenta}
+                              ðŸ¦ <b>{loan.banco_nombre}</b>: {loan.numero_cuenta}
                             </span>
                           ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              💵 Efectivo
+                              ðŸ’µ Efectivo
                             </span>
                           )}
                         </div>
@@ -419,7 +414,7 @@ function PrestamosContent() {
                             style={{ padding: '4px 8px', fontSize: '12px' }}
                             onClick={() => openEditModal(loan)}
                           >
-                            ✏️ Editar
+                            âœï¸ Editar
                           </button>
                         </td>
                       )}
@@ -431,29 +426,29 @@ function PrestamosContent() {
           </div>
         ) : (
           <div className="card empty-state">
-            <div className="empty-state-icon">💼</div>
-            <div className="empty-state-title">No se encontraron préstamos</div>
+            <div className="empty-state-icon">ðŸ’¼</div>
+            <div className="empty-state-title">No se encontraron prÃ©stamos</div>
           </div>
         )}
       </section>
 
-      {/* ══════════════════════════════════════════
-          MODAL OTORGAR PRÉSTAMO con cálculo automático
-      ══════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          MODAL OTORGAR PRÃ‰STAMO con cÃ¡lculo automÃ¡tico
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showAddModal && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: '640px' }}>
             <form onSubmit={handleCreateSubmit}>
               <div className="modal-header">
-                <h2>Otorgar Nuevo Préstamo</h2>
+                <h2>Otorgar Nuevo PrÃ©stamo</h2>
                 <button type="button" className="btn" style={{ background: 'none', padding: 0 }}
-                  onClick={() => setShowAddModal(false)}>❌</button>
+                  onClick={() => setShowAddModal(false)}>âŒ</button>
               </div>
               <div className="modal-body">
 
-                {/* Cédula del cliente */}
+                {/* CÃ©dula del cliente */}
                 <div className="form-group">
-                  <label>Cédula del Cliente <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <label>CÃ©dula del Cliente <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     type="text"
                     required
@@ -463,7 +458,7 @@ function PrestamosContent() {
                     placeholder="00100000000 (debe estar registrado)"
                     onChange={(e) => setFormValues({ ...formValues, cedula: e.target.value.replace(/\D/g, '') })}
                   />
-                  <small style={{ color: 'var(--text-muted)' }}>El cliente debe estar registrado en el módulo de Clientes.</small>
+                  <small style={{ color: 'var(--text-muted)' }}>El cliente debe estar registrado en el mÃ³dulo de Clientes.</small>
                 </div>
 
                 {/* Monto + Tasa */}
@@ -483,8 +478,8 @@ function PrestamosContent() {
                   </div>
                   <div className="form-group">
                     <label>
-                      Tasa de Interés Total (%)
-                      {currentUser?.rol !== 'admin' && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--warning)', fontWeight: '700' }}>🔒 Solo Admin</span>}
+                      Tasa de InterÃ©s Total (%)
+                      {currentUser?.rol !== 'admin' && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--warning)', fontWeight: '700' }}>ðŸ”’ Solo Admin</span>}
                     </label>
                     <div style={{ position: 'relative' }}>
                       <input
@@ -534,7 +529,7 @@ function PrestamosContent() {
 
                 {/* Fecha de inicio */}
                 <div className="form-group">
-                  <label>Fecha de Inicio del Préstamo <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <label>Fecha de Inicio del PrÃ©stamo <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     type="date"
                     required
@@ -544,17 +539,17 @@ function PrestamosContent() {
                   />
                 </div>
 
-                {/* Método de desembolso */}
+                {/* MÃ©todo de desembolso */}
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Método de Desembolso</label>
+                    <label>MÃ©todo de Desembolso</label>
                     <select
                       className="form-control"
                       value={formValues.metodo_desembolso}
                       onChange={(e) => setFormValues({ ...formValues, metodo_desembolso: e.target.value })}
                     >
-                      <option value="efectivo">💵 Efectivo</option>
-                      <option value="banco">🏦 Transferencia Bancaria</option>
+                      <option value="efectivo">ðŸ’µ Efectivo</option>
+                      <option value="banco">ðŸ¦ Transferencia Bancaria</option>
                     </select>
                   </div>
                 </div>
@@ -573,7 +568,7 @@ function PrestamosContent() {
                       />
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
-                      <label>Número de Cuenta <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <label>NÃºmero de Cuenta <span style={{ color: 'var(--danger)' }}>*</span></label>
                       <input
                         type="text"
                         required
@@ -586,7 +581,7 @@ function PrestamosContent() {
                   </div>
                 )}
 
-                {/* ── Panel de cálculo automático ── */}
+                {/* â”€â”€ Panel de cÃ¡lculo automÃ¡tico â”€â”€ */}
                 {calculo.totalAPagar > 0 && (
                   <div style={{
                     marginTop: '8px',
@@ -599,8 +594,8 @@ function PrestamosContent() {
                     gap: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '16px' }}>🧮</span>
-                      <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--primary)' }}>Cálculo Automático del Préstamo</span>
+                      <span style={{ fontSize: '16px' }}>ðŸ§®</span>
+                      <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--primary)' }}>CÃ¡lculo AutomÃ¡tico del PrÃ©stamo</span>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
                       <div style={{ background: 'var(--card-bg)', borderRadius: 'var(--radius-sm)', padding: '10px', border: '1px solid var(--border-color)' }}>
@@ -611,7 +606,7 @@ function PrestamosContent() {
                       </div>
                       <div style={{ background: 'var(--card-bg)', borderRadius: 'var(--radius-sm)', padding: '10px', border: '1px solid var(--border-color)' }}>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>
-                          Interés ({formValues.tasa_interes}%)
+                          InterÃ©s ({formValues.tasa_interes}%)
                         </div>
                         <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--warning)' }}>
                           + {formatCurrency(calculo.montoInteres)}
@@ -641,7 +636,7 @@ function PrestamosContent() {
                 {/* Nota informativa */}
                 {calculo.totalAPagar <= 0 && (
                   <div style={{ backgroundColor: 'var(--primary-bg)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: 'var(--radius-sm)', marginTop: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>
-                    💡 Ingresa el monto aprobado para ver el cálculo automático de cuotas e intereses.
+                    ðŸ’¡ Ingresa el monto aprobado para ver el cÃ¡lculo automÃ¡tico de cuotas e intereses.
                   </div>
                 )}
 
@@ -649,7 +644,7 @@ function PrestamosContent() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)} disabled={saving}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving || calculo.totalAPagar <= 0}>
-                  {saving ? 'Procesando...' : '✅ Guardar y Generar Calendario'}
+                  {saving ? 'Procesando...' : 'âœ… Guardar y Generar Calendario'}
                 </button>
               </div>
             </form>
@@ -657,27 +652,27 @@ function PrestamosContent() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════
-          MODAL EDITAR PRÉSTAMO
-      ══════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          MODAL EDITAR PRÃ‰STAMO
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showEditModal && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: '640px' }}>
             <form onSubmit={handleEditSubmit}>
               <div className="modal-header">
-                <h2>Editar Préstamo {editingLoan?.numero_prestamo}</h2>
+                <h2>Editar PrÃ©stamo {editingLoan?.numero_prestamo}</h2>
                 <button type="button" className="btn" style={{ background: 'none', padding: 0 }}
-                  onClick={() => { setShowEditModal(false); setEditingLoan(null); }}>❌</button>
+                  onClick={() => { setShowEditModal(false); setEditingLoan(null); }}>âŒ</button>
               </div>
               <div className="modal-body">
                 
                 <div style={{ backgroundColor: 'rgba(255,193,7,0.1)', border: '1px solid #ffc107', padding: '12px', borderRadius: '4px', marginBottom: '16px', fontSize: '13px', color: '#856404' }}>
-                  ⚠️ <b>Importante:</b> Al guardar los cambios, se eliminará el calendario de cuotas actual y se generará uno nuevo con estos datos. Esta acción no se puede realizar si el cliente ya ha pagado alguna cuota.
+                  âš ï¸ <b>Importante:</b> Al guardar los cambios, se eliminarÃ¡ el calendario de cuotas actual y se generarÃ¡ uno nuevo con estos datos. Esta acciÃ³n no se puede realizar si el cliente ya ha pagado alguna cuota.
                 </div>
 
-                {/* Cédula del cliente (Disabled en edición) */}
+                {/* CÃ©dula del cliente (Disabled en ediciÃ³n) */}
                 <div className="form-group">
-                  <label>Cédula del Cliente</label>
+                  <label>CÃ©dula del Cliente</label>
                   <input
                     type="text"
                     disabled
@@ -702,8 +697,8 @@ function PrestamosContent() {
                   </div>
                   <div className="form-group">
                     <label>
-                      Tasa de Interés Total (%)
-                      {currentUser?.rol !== 'admin' && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--warning)', fontWeight: '700' }}>🔒 Solo Admin</span>}
+                      Tasa de InterÃ©s Total (%)
+                      {currentUser?.rol !== 'admin' && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--warning)', fontWeight: '700' }}>ðŸ”’ Solo Admin</span>}
                     </label>
                     <div style={{ position: 'relative' }}>
                       <input
@@ -762,17 +757,17 @@ function PrestamosContent() {
                   />
                 </div>
 
-                {/* Método de desembolso */}
+                {/* MÃ©todo de desembolso */}
                 <div className="form-row">
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label>Método de Desembolso</label>
+                    <label>MÃ©todo de Desembolso</label>
                     <select
                       className="form-control"
                       value={formValues.metodo_desembolso}
                       onChange={(e) => setFormValues({ ...formValues, metodo_desembolso: e.target.value })}
                     >
-                      <option value="efectivo">💵 Efectivo</option>
-                      <option value="banco">🏦 Transferencia Bancaria</option>
+                      <option value="efectivo">ðŸ’µ Efectivo</option>
+                      <option value="banco">ðŸ¦ Transferencia Bancaria</option>
                     </select>
                   </div>
                 </div>
@@ -790,7 +785,7 @@ function PrestamosContent() {
                       />
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
-                      <label>Número de Cuenta <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <label>NÃºmero de Cuenta <span style={{ color: 'var(--danger)' }}>*</span></label>
                       <input
                         type="text"
                         required
@@ -806,7 +801,7 @@ function PrestamosContent() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => { setShowEditModal(false); setEditingLoan(null); }} disabled={saving}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving || calculo.totalAPagar <= 0}>
-                  {saving ? 'Guardando...' : '💾 Actualizar Préstamo'}
+                  {saving ? 'Guardando...' : 'ðŸ’¾ Actualizar PrÃ©stamo'}
                 </button>
               </div>
             </form>
@@ -814,17 +809,17 @@ function PrestamosContent() {
         </div>
       )}
 
-      {/* Modal Confirmación de Fecha Futura */}
+      {/* Modal ConfirmaciÃ³n de Fecha Futura */}
       {showFutureDateWarning && (
         <div className="modal-backdrop" style={{ zIndex: 1050 }}>
           <div className="modal-content" style={{ maxWidth: '400px' }}>
             <div className="modal-header">
-              <h2>⚠️ Fecha Futura</h2>
-              <button className="close-btn" onClick={() => setShowFutureDateWarning(false)}>×</button>
+              <h2>âš ï¸ Fecha Futura</h2>
+              <button className="close-btn" onClick={() => setShowFutureDateWarning(false)}>Ã—</button>
             </div>
             <div className="modal-body">
-              <p>Estás intentando registrar o editar un préstamo con una <strong>fecha de inicio en el futuro</strong> ({formValues.fecha_inicio}).</p>
-              <p>¿Estás seguro de que deseas continuar?</p>
+              <p>EstÃ¡s intentando registrar o editar un prÃ©stamo con una <strong>fecha de inicio en el futuro</strong> ({formValues.fecha_inicio}).</p>
+              <p>Â¿EstÃ¡s seguro de que deseas continuar?</p>
             </div>
             <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
               <button 
@@ -847,7 +842,7 @@ function PrestamosContent() {
                   setPendingAction(null);
                 }}
               >
-                Sí, continuar
+                SÃ­, continuar
               </button>
             </div>
           </div>

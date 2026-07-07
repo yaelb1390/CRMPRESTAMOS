@@ -1,7 +1,8 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function ConfiguracionPage() {
   const { showToast } = useToast();
@@ -14,12 +15,12 @@ export default function ConfiguracionPage() {
   const fetchConfigs = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/configuracion');
+      const res = await apiFetch('/api/configuracion');
       if (res.ok) {
         const json = await res.json();
         setConfigs(json.data || []);
       } else {
-        showToast('Error al cargar configuración', 'error');
+        showToast('Error al cargar configuraciÃ³n', 'error');
       }
     } catch (err) {
       showToast('Error de red', 'error');
@@ -40,13 +41,13 @@ export default function ConfiguracionPage() {
   const handleSave = async (clave) => {
     try {
       setSaving(true);
-      const res = await fetch('/api/configuracion', {
+      const res = await apiFetch('/api/configuracion', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clave, valor: editValue })
       });
       if (res.ok) {
-        showToast('Configuración guardada', 'success');
+        showToast('ConfiguraciÃ³n guardada', 'success');
         setEditingKey(null);
         fetchConfigs();
       } else {
@@ -62,9 +63,9 @@ export default function ConfiguracionPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h1>Configuración Financiera</h1>
+        <h1>ConfiguraciÃ³n Financiera</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Gestiona tasas, moras y límites operativos del sistema.
+          Gestiona tasas, moras y lÃ­mites operativos del sistema.
         </p>
       </div>
 
@@ -77,7 +78,7 @@ export default function ConfiguracionPage() {
               <thead>
                 <tr>
                   <th>Clave</th>
-                  <th>Descripción</th>
+                  <th>DescripciÃ³n</th>
                   <th>Valor Actual</th>
                   <th>Acciones</th>
                 </tr>
@@ -106,11 +107,11 @@ export default function ConfiguracionPage() {
                     <td>
                       {editingKey === c.clave ? (
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn btn-primary" style={{ padding: '4px 8px' }} onClick={() => handleSave(c.clave)} disabled={saving}>💾 Guardar</button>
-                          <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setEditingKey(null)} disabled={saving}>❌ Cancelar</button>
+                          <button className="btn btn-primary" style={{ padding: '4px 8px' }} onClick={() => handleSave(c.clave)} disabled={saving}>ðŸ’¾ Guardar</button>
+                          <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setEditingKey(null)} disabled={saving}>âŒ Cancelar</button>
                         </div>
                       ) : (
-                        <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => handleEdit(c)}>✏️ Editar</button>
+                        <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => handleEdit(c)}>âœï¸ Editar</button>
                       )}
                     </td>
                   </tr>
@@ -140,7 +141,7 @@ export default function ConfiguracionPage() {
           <div style={{ flex: 1, minWidth: '250px' }}>
             <h3 style={{ fontSize: '15px', marginBottom: '8px' }}>Logo de la Empresa</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Sube tu propio logo para personalizar el CRM. Recomendado: formato PNG con fondo transparente. Tamaño máximo: 10MB.
+              Sube tu propio logo para personalizar el CRM. Recomendado: formato PNG con fondo transparente. TamaÃ±o mÃ¡ximo: 10MB.
             </p>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <input 
@@ -152,7 +153,7 @@ export default function ConfiguracionPage() {
                   const file = e.target.files[0];
                   if (!file) return;
                   if (file.size > 10 * 1024 * 1024) {
-                    showToast('El archivo es demasiado grande (máximo 10MB)', 'error');
+                    showToast('El archivo es demasiado grande (mÃ¡ximo 10MB)', 'error');
                     return;
                   }
                   
@@ -161,7 +162,7 @@ export default function ConfiguracionPage() {
                     const base64String = reader.result;
                     try {
                       setSaving(true);
-                      const res = await fetch('/api/configuracion/logo', {
+                      const res = await apiFetch('/api/configuracion/logo', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ logo_base64: base64String })
@@ -188,16 +189,16 @@ export default function ConfiguracionPage() {
                 className="btn btn-primary" 
                 style={{ cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
               >
-                {saving ? '⏳ Subiendo...' : '📁 Cambiar Logo'}
+                {saving ? 'â³ Subiendo...' : 'ðŸ“ Cambiar Logo'}
               </label>
               <button 
                 className="btn btn-secondary" 
                 disabled={saving}
                 onClick={async () => {
-                  if(!confirm('¿Seguro que deseas restablecer el logo al por defecto?')) return;
+                  if(!confirm('Â¿Seguro que deseas restablecer el logo al por defecto?')) return;
                   try {
                     setSaving(true);
-                    const res = await fetch('/api/configuracion/logo', { method: 'DELETE' });
+                    const res = await apiFetch('/api/configuracion/logo', { method: 'DELETE' });
                     if (res.ok) {
                       showToast('Logo restablecido', 'success');
                       setTimeout(() => window.location.reload(), 1000);
@@ -211,7 +212,7 @@ export default function ConfiguracionPage() {
                   }
                 }}
               >
-                🔄 Restablecer
+                ðŸ”„ Restablecer
               </button>
             </div>
           </div>

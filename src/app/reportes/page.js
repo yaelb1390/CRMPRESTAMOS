@@ -1,21 +1,20 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import * as XLSX from 'xlsx';
+import { apiFetch } from '@/lib/apiFetch';
 
 export default function ReportesPage() {
   const { showToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('mora'); // 'mora', 'pagos', 'vencimientos'
-  const [searchQuery, setSearchQuery] = useState('');
-  const [metodoPagoFilter, setMetodoPagoFilter] = useState('');
 
   const fetchReportes = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/reportes');
+      const res = await apiFetch('/api/reportes');
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -60,7 +59,7 @@ export default function ReportesPage() {
       showToast('No hay datos de mora para exportar.', 'warning');
       return;
     }
-    const headers = ['Cédula', 'Nombre Cliente', '# Préstamo', 'Balance Pendiente', 'Cuota Mensual', 'Días Atraso', 'Estado'];
+    const headers = ['CÃ©dula', 'Nombre Cliente', '# PrÃ©stamo', 'Balance Pendiente', 'Cuota Mensual', 'DÃ­as Atraso', 'Estado'];
     const rows = data.lists.mora.map(r => [
       r.cedula,
       r.nombre_cliente,
@@ -82,7 +81,7 @@ export default function ReportesPage() {
       showToast('No hay datos de pagos para exportar.', 'warning');
       return;
     }
-    const headers = ['ID Pago', '# Préstamo', 'Cédula', 'Cliente', 'Monto Pagado', 'Método', 'Fecha Pago', 'Registrado Por'];
+    const headers = ['ID Pago', '# PrÃ©stamo', 'CÃ©dula', 'Cliente', 'Monto Pagado', 'MÃ©todo', 'Fecha Pago', 'Registrado Por'];
     const rows = data.lists.pagos.map(r => [
       r.id,
       r.numero_prestamo,
@@ -105,7 +104,7 @@ export default function ReportesPage() {
       showToast('No hay datos de vencimientos para exportar.', 'warning');
       return;
     }
-    const headers = ['Cédula', 'Nombre Cliente', '# Préstamo', 'Cuota Pendiente', 'Fecha Próximo Pago', 'Estado'];
+    const headers = ['CÃ©dula', 'Nombre Cliente', '# PrÃ©stamo', 'Cuota Pendiente', 'Fecha PrÃ³ximo Pago', 'Estado'];
     const rows = data.lists.vencimientos.map(r => [
       r.cedula,
       r.nombre_cliente,
@@ -135,47 +134,6 @@ export default function ReportesPage() {
 
   const { carteraRiesgo, cobros } = data.metrics;
 
-  const filteredMora = data.lists.mora.filter(item => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      item.nombre_cliente?.toLowerCase().includes(q) ||
-      item.cedula?.includes(q) ||
-      item.numero_prestamo?.toLowerCase().includes(q)
-    );
-  });
-
-  const filteredPagos = data.lists.pagos.filter(item => {
-    let matchesSearch = true;
-    let matchesMetodo = true;
-
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      matchesSearch = (
-        item.nombre_cliente?.toLowerCase().includes(q) ||
-        item.numero_prestamo?.toLowerCase().includes(q) ||
-        item.registrado_por?.toLowerCase().includes(q) ||
-        String(item.id).includes(q)
-      );
-    }
-
-    if (metodoPagoFilter) {
-      matchesMetodo = item.metodo_pago === metodoPagoFilter;
-    }
-
-    return matchesSearch && matchesMetodo;
-  });
-
-  const filteredVencimientos = data.lists.vencimientos.filter(item => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      item.nombre_cliente?.toLowerCase().includes(q) ||
-      item.cedula?.includes(q) ||
-      item.numero_prestamo?.toLowerCase().includes(q)
-    );
-  });
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Print styles */}
@@ -204,17 +162,17 @@ export default function ReportesPage() {
         <div>
           <h1>Reportes Gerenciales</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Consolidado de mora, cobros del periodo y próximos vencimientos de cartera.
+            Consolidado de mora, cobros del periodo y prÃ³ximos vencimientos de cartera.
           </p>
         </div>
         <button className="btn btn-primary" onClick={handlePrint}>
-          🖨️ Imprimir Reporte (PDF)
+          ðŸ–¨ï¸ Imprimir Reporte (PDF)
         </button>
       </div>
 
       {/* Printable Title Block */}
       <div className="only-print" style={{ display: 'none', textAlign: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', textTransform: 'uppercase', color: 'var(--primary)' }}>Préstamos BM - Reporte Gerencial</h1>
+        <h1 style={{ fontSize: '22px', textTransform: 'uppercase', color: 'var(--primary)' }}>PrÃ©stamos BM - Reporte Gerencial</h1>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Generado el: {new Date().toLocaleDateString('es-DO')}</p>
       </div>
 
@@ -229,7 +187,7 @@ export default function ReportesPage() {
             {formatCurrency(carteraRiesgo.totalMoraMonto)}
           </span>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {carteraRiesgo.totalMoraCant} préstamos en mora
+            {carteraRiesgo.totalMoraCant} prÃ©stamos en mora
           </span>
         </div>
         
@@ -237,7 +195,7 @@ export default function ReportesPage() {
           <div className="metric-icon" style={{ color: 'var(--secondary)' }}>
             <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
           </div>
-          <span className="metric-title">Cobros del Día</span>
+          <span className="metric-title">Cobros del DÃ­a</span>
           <span className="metric-value" style={{ color: 'var(--secondary)' }}>
             {formatCurrency(cobros.hoy)}
           </span>
@@ -257,7 +215,7 @@ export default function ReportesPage() {
           <div className="metric-icon" style={{ color: 'var(--primary)' }}>
             <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
           </div>
-          <span className="metric-title">Cobros del Mes (30 días)</span>
+          <span className="metric-title">Cobros del Mes (30 dÃ­as)</span>
           <span className="metric-value">
             {formatCurrency(cobros.mes)}
           </span>
@@ -270,7 +228,7 @@ export default function ReportesPage() {
           <div className="metric-icon" style={{ right: '16px', top: '16px', width: '40px', height: '40px', color: 'var(--primary)', backgroundColor: 'var(--primary-bg)', borderColor: 'transparent' }}>
             <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Atraso Leve (1-30 días)</div>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Atraso Leve (1-30 dÃ­as)</div>
           <div style={{ fontSize: '20px', fontWeight: '800', marginTop: '6px', color: 'var(--primary)' }}>
             {formatCurrency(carteraRiesgo.mora30monto)}
           </div>
@@ -280,7 +238,7 @@ export default function ReportesPage() {
           <div className="metric-icon" style={{ right: '16px', top: '16px', width: '40px', height: '40px', color: 'var(--warning)', backgroundColor: 'var(--warning-light)', borderColor: 'rgba(245, 158, 11, 0.2)' }}>
             <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M20 4 16 8"/></svg>
           </div>
-          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Atraso Medio (31-90 días)</div>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Atraso Medio (31-90 dÃ­as)</div>
           <div style={{ fontSize: '20px', fontWeight: '800', marginTop: '6px', color: 'var(--warning)' }}>
             {formatCurrency(carteraRiesgo.mora90monto)}
           </div>
@@ -290,7 +248,7 @@ export default function ReportesPage() {
           <div className="metric-icon" style={{ right: '16px', top: '16px', width: '40px', height: '40px', color: 'var(--danger)', backgroundColor: 'var(--danger-light)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
             <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
           </div>
-          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mora Crítica (+90 días)</div>
+          <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Mora CrÃ­tica (+90 dÃ­as)</div>
           <div style={{ fontSize: '20px', fontWeight: '800', marginTop: '6px', color: 'var(--danger)' }}>
             {formatCurrency(carteraRiesgo.moraMas90monto)}
           </div>
@@ -318,7 +276,7 @@ export default function ReportesPage() {
             fontSize: '14.5px'
           }}
         >
-          🚨 Detalle de Mora ({data.lists.mora.length})
+          ðŸš¨ Detalle de Mora ({data.lists.mora.length})
         </button>
 
         <button 
@@ -334,7 +292,7 @@ export default function ReportesPage() {
             fontSize: '14.5px'
           }}
         >
-          💰 Cobros Recientes ({data.lists.pagos.length})
+          ðŸ’° Cobros Recientes ({data.lists.pagos.length})
         </button>
 
         <button 
@@ -350,7 +308,7 @@ export default function ReportesPage() {
             fontSize: '14.5px'
           }}
         >
-          🗓️ Vencimientos próximos ({data.lists.vencimientos.length})
+          ðŸ—“ï¸ Vencimientos prÃ³ximos ({data.lists.vencimientos.length})
         </button>
       </div>
 
@@ -367,8 +325,8 @@ export default function ReportesPage() {
         }}>
           <h2 style={{ fontSize: '15px' }}>
             {activeTab === 'mora' && 'Listado de Clientes con Cartera en Mora'}
-            {activeTab === 'pagos' && 'Bitácora de Cobros de los Últimos 30 Días'}
-            {activeTab === 'vencimientos' && 'Próximos Vencimientos de Cuota (Próximos 14 días)'}
+            {activeTab === 'pagos' && 'BitÃ¡cora de Cobros de los Ãšltimos 30 DÃ­as'}
+            {activeTab === 'vencimientos' && 'PrÃ³ximos Vencimientos de Cuota (PrÃ³ximos 14 dÃ­as)'}
           </h2>
           <button 
             className="btn btn-secondary export-btn" 
@@ -379,45 +337,8 @@ export default function ReportesPage() {
               exportVencimientosToExcel
             }
           >
-            📊 Exportar a Excel (XLSX)
+            ðŸ“Š Exportar a Excel (XLSX)
           </button>
-        </div>
-
-        {/* Filters Section */}
-        <div className="no-print" style={{ 
-          display: 'flex', 
-          gap: '12px',
-          padding: '16px 20px',
-          background: 'var(--primary-bg)',
-          borderBottom: '1px solid var(--border-color)',
-          flexWrap: 'wrap'
-        }}>
-          <div style={{ flex: '1', minWidth: '250px' }}>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Buscar por cliente, cédula, o préstamo..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: '8px 12px', fontSize: '13.5px' }}
-            />
-          </div>
-          
-          {activeTab === 'pagos' && (
-            <div style={{ width: '200px' }}>
-              <select
-                className="form-control"
-                value={metodoPagoFilter}
-                onChange={(e) => setMetodoPagoFilter(e.target.value)}
-                style={{ padding: '8px 12px', fontSize: '13.5px' }}
-              >
-                <option value="">Todos los métodos</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="banco">Banco / Depósito</option>
-              </select>
-            </div>
-          )}
         </div>
 
         {/* Tab 1: Cartera en Mora */}
@@ -428,16 +349,16 @@ export default function ReportesPage() {
                 <thead>
                   <tr>
                     <th>Cliente</th>
-                    <th>Cédula</th>
-                    <th># Préstamo</th>
+                    <th>CÃ©dula</th>
+                    <th># PrÃ©stamo</th>
                     <th>Monto Cuota</th>
                     <th>Balance Pendiente</th>
-                    <th style={{ textAlign: 'center' }}>Días Atraso</th>
+                    <th style={{ textAlign: 'center' }}>DÃ­as Atraso</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMora.map((item) => (
+                  {data.lists.mora.map((item) => (
                     <tr key={item.numero_prestamo}>
                       <td style={{ fontWeight: 600 }}>{item.nombre_cliente}</td>
                       <td>{item.cedula}</td>
@@ -456,7 +377,7 @@ export default function ReportesPage() {
               </table>
             ) : (
               <div className="empty-state">
-                <span className="empty-state-icon">🎉</span>
+                <span className="empty-state-icon">ðŸŽ‰</span>
                 <div className="empty-state-title">Excelente Salud Financiera</div>
                 <div className="empty-state-desc">No hay clientes con saldos vencidos actualmente.</div>
               </div>
@@ -473,15 +394,15 @@ export default function ReportesPage() {
                   <tr>
                     <th>ID Pago</th>
                     <th>Cliente</th>
-                    <th># Préstamo</th>
+                    <th># PrÃ©stamo</th>
                     <th>Monto Recibido</th>
-                    <th>Método</th>
+                    <th>MÃ©todo</th>
                     <th>Fecha</th>
                     <th>Registrado Por</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPagos.map((item) => (
+                  {data.lists.pagos.map((item) => (
                     <tr key={item.id}>
                       <td><code>#{String(item.id).padStart(6, '0')}</code></td>
                       <td style={{ fontWeight: 600 }}>{item.nombre_cliente || 'N/A'}</td>
@@ -496,9 +417,9 @@ export default function ReportesPage() {
               </table>
             ) : (
               <div className="empty-state">
-                <span className="empty-state-icon">💰</span>
+                <span className="empty-state-icon">ðŸ’°</span>
                 <div className="empty-state-title">Sin Cobros Registrados</div>
-                <div className="empty-state-desc">No se han registrado cuotas cobradas en los últimos 30 días.</div>
+                <div className="empty-state-desc">No se han registrado cuotas cobradas en los Ãºltimos 30 dÃ­as.</div>
               </div>
             )}
           </div>
@@ -512,15 +433,15 @@ export default function ReportesPage() {
                 <thead>
                   <tr>
                     <th>Cliente</th>
-                    <th>Cédula</th>
-                    <th># Préstamo</th>
+                    <th>CÃ©dula</th>
+                    <th># PrÃ©stamo</th>
                     <th>Valor Cuota</th>
                     <th>Fecha Vencimiento</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredVencimientos.map((item) => (
+                  {data.lists.vencimientos.map((item) => (
                     <tr key={item.numero_prestamo}>
                       <td style={{ fontWeight: 600 }}>{item.nombre_cliente}</td>
                       <td>{item.cedula}</td>
@@ -536,9 +457,9 @@ export default function ReportesPage() {
               </table>
             ) : (
               <div className="empty-state">
-                <span className="empty-state-icon">🗓️</span>
-                <div className="empty-state-title">Sin Vencimientos Próximos</div>
-                <div className="empty-state-desc">No existen préstamos con vencimiento programado en los próximos 14 días.</div>
+                <span className="empty-state-icon">ðŸ—“ï¸</span>
+                <div className="empty-state-title">Sin Vencimientos PrÃ³ximos</div>
+                <div className="empty-state-desc">No existen prÃ©stamos con vencimiento programado en los prÃ³ximos 14 dÃ­as.</div>
               </div>
             )}
           </div>
