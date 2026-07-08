@@ -1,6 +1,7 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { ensureClientesColumns } from '@/lib/schema';
 
 export async function GET(request) {
   try {
@@ -23,13 +24,13 @@ export async function GET(request) {
 
     if (tab === 'historicos') {
 
-      // Clientes sin prÃ©stamos activos
+      // Clientes sin préstamos activos
       whereClause.push(`
         cedula NOT IN (SELECT cedula FROM prestamos WHERE estado != 'pagado')
         AND prestamos_liquidados > 0
       `);
     } else {
-      // Clientes con prÃ©stamos activos o reciÃ©n creados sin prÃ©stamos
+      // Clientes con préstamos activos o recién creados sin préstamos
       whereClause.push(`
         (cedula IN (SELECT cedula FROM prestamos WHERE estado != 'pagado')
         OR total_prestamos = 0)
@@ -38,7 +39,7 @@ export async function GET(request) {
 
     const user = await getCurrentUser(request);
     if (user && user.rol !== 'admin') {
-      // Colaboradores ven clientes con prÃ©stamos activos o atrasados (no pagados)
+      // Colaboradores ven clientes con préstamos activos o atrasados (no pagados)
       whereClause.push(`
         cedula IN (
           SELECT cedula FROM prestamos 
@@ -87,23 +88,9 @@ export async function GET(request) {
   }
 }
 
-async function ensureColumnsExist() {
-  try {
-    await query(`
-      ALTER TABLE clientes 
-      ADD COLUMN IF NOT EXISTS metodo_desembolso VARCHAR(20) DEFAULT 'efectivo',
-      ADD COLUMN IF NOT EXISTS banco_nombre VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS numero_cuenta VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS email VARCHAR(150)
-    `);
-  } catch (err) {
-    console.error("Error ensuring columns:", err);
-  }
-}
-
 export async function POST(request) {
   try {
-    await ensureColumnsExist();
+    await ensureClientesColumns();
     const user = await getCurrentUser(request);
 
     const body = await request.json();
@@ -111,7 +98,7 @@ export async function POST(request) {
 
     // 1. Validation
     if (!cedula || !/^\d{11}$/.test(cedula)) {
-      return NextResponse.json({ error: "La cÃ©dula debe contener exactamente 11 dÃ­gitos numÃ©ricos." }, { status: 400 });
+      return NextResponse.json({ error: "La cédula debe contener exactamente 11 dígitos numéricos." }, { status: 400 });
     }
 
     if (!nombre || nombre.trim().length < 3 || nombre.trim().length > 100) {
@@ -121,7 +108,7 @@ export async function POST(request) {
     // 2. Check duplicate cedula
     const checkCedula = await query("SELECT id FROM clientes WHERE cedula = $1", [cedula]);
     if (checkCedula.rows.length > 0) {
-      return NextResponse.json({ error: "Ya existe un cliente registrado con esta cÃ©dula" }, { status: 409 });
+      return NextResponse.json({ error: "Ya existe un cliente registrado con esta cédula" }, { status: 409 });
     }
 
     // 3. Insert Client
@@ -140,7 +127,7 @@ export async function POST(request) {
       email || null
     ]);
 
-    // AuditorÃ­a
+    // Auditoría
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -151,7 +138,7 @@ export async function POST(request) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditorÃ­a:", e);
+      console.error("Error en auditoría:", e);
     }
 
     return NextResponse.json({

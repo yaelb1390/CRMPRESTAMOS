@@ -1,9 +1,10 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
@@ -16,33 +17,12 @@ export default function AppShell({ children }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  // Usuario, permisos y logout centralizados en AuthContext (antes se consultaba aquí).
+  const { user, authLoading, hasPermission, logout } = useAuth();
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
     setSidebarOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (pathname === '/login') {
-        setAuthLoading(false);
-        return;
-      }
-      try {
-        const res = await apiFetch('/api/auth/me');
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-        }
-      } catch (err) {
-        console.error('Error fetching user', err);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-    fetchUser();
   }, [pathname]);
 
   // Debounce logic for search
@@ -89,17 +69,6 @@ export default function AppShell({ children }) {
     router.push(`/clientes?cedula=${cedula}`);
   };
 
-  const handleLogout = async () => {
-    try {
-      await apiFetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
-      router.push('/login');
-      router.refresh();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   if (pathname === '/login') {
     return <>{children}</>;
   }
@@ -107,18 +76,13 @@ export default function AppShell({ children }) {
   const getBreadcrumbs = () => {
     if (pathname === '/dashboard') return [{ label: 'Dashboard', active: true }];
     if (pathname === '/clientes') return [{ label: 'CRM', active: false }, { label: 'Clientes', active: true }];
-    if (pathname === '/prestamos') return [{ label: 'CRM', active: false }, { label: 'PrÃ©stamos', active: true }];
-    if (pathname === '/configuracion') return [{ label: 'ConfiguraciÃ³n', active: false }, { label: 'General', active: true }];
-    if (pathname === '/usuarios') return [{ label: 'ConfiguraciÃ³n', active: false }, { label: 'Usuarios', active: true }];
+    if (pathname === '/prestamos') return [{ label: 'CRM', active: false }, { label: 'Préstamos', active: true }];
+    if (pathname === '/configuracion') return [{ label: 'Configuración', active: false }, { label: 'General', active: true }];
+    if (pathname === '/usuarios') return [{ label: 'Configuración', active: false }, { label: 'Usuarios', active: true }];
     return [{ label: 'Inicio', active: true }];
   };
 
   const breadcrumbs = getBreadcrumbs();
-  const hasPermission = (permission) => {
-    if (!user) return false;
-    if (user.rol === 'admin') return true;
-    return Array.isArray(user.permisos) && user.permisos.includes(permission);
-  };
 
   const getRequiredPermission = (path) => {
     if (path.startsWith('/dashboard')) return 'dashboard';
@@ -153,15 +117,15 @@ export default function AppShell({ children }) {
         <button
           className="sidebar-close-btn"
           onClick={() => setSidebarOpen(false)}
-          aria-label="Cerrar menÃº"
+          aria-label="Cerrar menú"
         >
-          âœ•
+          ✕
         </button>
 
         <div className="sidebar-logo-container">
           <img 
             src="/api/configuracion/logo?v=6" 
-            alt="PrÃ©stamos BM" 
+            alt="Préstamos BM" 
             className="sidebar-logo" 
             onError={(e) => { e.target.src = '/logo.png?v=6'; }}
           />
@@ -170,47 +134,47 @@ export default function AppShell({ children }) {
         <nav className="sidebar-menu">
           {hasPermission('dashboard') && (
             <Link href="/dashboard" className={`sidebar-item-link ${pathname === '/dashboard' ? 'active' : ''}`}>
-              <span>ðŸ“Š</span> Dashboard
+              <span>📊</span> Dashboard
             </Link>
           )}
           {hasPermission('clientes') && (
             <Link href="/clientes" className={`sidebar-item-link ${pathname === '/clientes' ? 'active' : ''}`}>
-              <span>ðŸ‘¥</span> Clientes
+              <span>👥</span> Clientes
             </Link>
           )}
           {hasPermission('cobros') && (
             <Link href="/cobros" className={`sidebar-item-link ${pathname === '/cobros' ? 'active' : ''}`}>
-              <span>ðŸ’³</span> Cobros
+              <span>💳</span> Cobros
             </Link>
           )}
           {hasPermission('recordatorios') && (
             <Link href="/recordatorios" className={`sidebar-item-link ${pathname === '/recordatorios' ? 'active' : ''}`}>
-              <span>ðŸ””</span> Recordatorios
+              <span>🔔</span> Recordatorios
             </Link>
           )}
           {hasPermission('prestamos') && (
             <Link href="/prestamos" className={`sidebar-item-link ${pathname === '/prestamos' ? 'active' : ''}`}>
-              <span>ðŸ’¼</span> PrÃ©stamos
+              <span>💼</span> Préstamos
             </Link>
           )}
           {hasPermission('reportes') && (
             <Link href="/reportes" className={`sidebar-item-link ${pathname === '/reportes' ? 'active' : ''}`}>
-              <span>ðŸ“ˆ</span> Reportes
+              <span>📈</span> Reportes
             </Link>
           )}
           {hasPermission('usuarios') && (
             <Link href="/usuarios" className={`sidebar-item-link ${pathname === '/usuarios' ? 'active' : ''}`}>
-              <span>ðŸ‘¥</span> Usuarios
+              <span>🛡️</span> Usuarios
             </Link>
           )}
           {hasPermission('auditoria') && (
             <Link href="/auditoria" className={`sidebar-item-link ${pathname === '/auditoria' ? 'active' : ''}`}>
-              <span>ðŸ“‹</span> AuditorÃ­a
+              <span>📋</span> Auditoría
             </Link>
           )}
           {hasPermission('configuracion') && (
             <Link href="/configuracion" className={`sidebar-item-link ${pathname === '/configuracion' ? 'active' : ''}`}>
-              <span>âš™ï¸</span> ConfiguraciÃ³n
+              <span>⚙️</span> Configuración
             </Link>
           )}
         </nav>
@@ -225,10 +189,10 @@ export default function AppShell({ children }) {
             </div>
           )}
           <button
-            onClick={handleLogout}
+            onClick={logout}
             style={{ width: '100%', padding: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#ef4444', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
           >
-            <span>ðŸšª</span> Cerrar SesiÃ³n
+            <span>🚪</span> Cerrar Sesión
           </button>
         </div>
       </aside>
@@ -241,7 +205,7 @@ export default function AppShell({ children }) {
           <button
             className="hamburger-btn"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Abrir menÃº"
+            aria-label="Abrir menú"
           >
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
@@ -260,7 +224,7 @@ export default function AppShell({ children }) {
 
           {/* Global Search */}
           <div className="header-search-container" ref={dropdownRef}>
-            <span className="header-search-icon">ðŸ”</span>
+            <span className="header-search-icon">🔍</span>
             <input
               type="text"
               className="header-search-input"
@@ -287,7 +251,7 @@ export default function AppShell({ children }) {
                       >
                         <div>
                           <div className="search-result-name">{client.nombre_cliente}</div>
-                          <div className="search-result-meta">CÃ©dula: {client.cedula}</div>
+                          <div className="search-result-meta">Cédula: {client.cedula}</div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                           <span className={`badge badge-${client.estado}`}>{client.estado}</span>
@@ -315,10 +279,10 @@ export default function AppShell({ children }) {
             children
           ) : (
             <div className="card" style={{ padding: '48px', textAlign: 'center', maxWidth: '500px', margin: '40px auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-              <div style={{ fontSize: '48px' }}>ðŸš«</div>
+              <div style={{ fontSize: '48px' }}>🚫</div>
               <h2 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--danger)' }}>Acceso Denegado</h2>
               <p style={{ color: 'var(--text-muted)', fontSize: '14px', lineHeight: '1.5' }}>
-                No tienes privilegios asignados para acceder al mÃ³dulo de <b>{requiredPerm === 'prestamos' ? 'PrÃ©stamos' : requiredPerm === 'auditoria' ? 'AuditorÃ­a' : requiredPerm === 'configuracion' ? 'ConfiguraciÃ³n' : requiredPerm === 'usuarios' ? 'Usuarios' : requiredPerm === 'reportes' ? 'Reportes' : requiredPerm}</b>. Por favor, solicita acceso a un administrador.
+                No tienes privilegios asignados para acceder al módulo de <b>{requiredPerm === 'prestamos' ? 'Préstamos' : requiredPerm === 'auditoria' ? 'Auditoría' : requiredPerm === 'configuracion' ? 'Configuración' : requiredPerm === 'usuarios' ? 'Usuarios' : requiredPerm === 'reportes' ? 'Reportes' : requiredPerm}</b>. Por favor, solicita acceso a un administrador.
               </p>
               {(() => {
                 const allRoutes = [
@@ -335,8 +299,8 @@ export default function AppShell({ children }) {
                     Ir a {firstAvailable.perm.charAt(0).toUpperCase() + firstAvailable.perm.slice(1)}
                   </button>
                 ) : (
-                  <button className="btn btn-primary" onClick={handleLogout}>
-                    Cerrar SesiÃ³n
+                  <button className="btn btn-primary" onClick={logout}>
+                    Cerrar Sesión
                   </button>
                 );
               })()}

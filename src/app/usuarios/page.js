@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch } from '@/lib/apiFetch';
+import Modal from '@/components/Modal';
 
 export default function UsuariosPage() {
   const { showToast } = useToast();
@@ -15,15 +16,15 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
 
   const ALL_PERMISSIONS = [
-    { key: 'dashboard', label: 'ðŸ“Š Dashboard' },
-    { key: 'clientes', label: 'ðŸ‘¥ CRM Clientes' },
-    { key: 'cobros', label: 'ðŸ’³ MÃ³dulo de Cobros' },
-    { key: 'recordatorios', label: 'ðŸ”” Recordatorios' },
-    { key: 'prestamos', label: 'ðŸ’¼ PrÃ©stamos' },
-    { key: 'reportes', label: 'ðŸ“ˆ Reportes' },
-    { key: 'usuarios', label: 'ðŸ‘¥ Usuarios' },
-    { key: 'auditoria', label: 'ðŸ“‹ AuditorÃ­a' },
-    { key: 'configuracion', label: 'âš™ï¸ ConfiguraciÃ³n' }
+    { key: 'dashboard', label: '📊 Dashboard' },
+    { key: 'clientes', label: '👥 CRM Clientes' },
+    { key: 'cobros', label: '💳 Módulo de Cobros' },
+    { key: 'recordatorios', label: '🔔 Recordatorios' },
+    { key: 'prestamos', label: '💼 Préstamos' },
+    { key: 'reportes', label: '📈 Reportes' },
+    { key: 'usuarios', label: '🛡️ Usuarios' },
+    { key: 'auditoria', label: '📋 Auditoría' },
+    { key: 'configuracion', label: '⚙️ Configuración' }
   ];
 
   const fetchUsuarios = async () => {
@@ -58,7 +59,7 @@ export default function UsuariosPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Â¿Seguro que deseas eliminar este usuario?')) return;
+    if (!confirm('¿Seguro que deseas eliminar este usuario?')) return;
     try {
       const res = await apiFetch(`/api/usuarios/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -105,13 +106,13 @@ export default function UsuariosPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1>MÃ³dulo de Usuarios</h1>
+          <h1>Módulo de Usuarios</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            AdministraciÃ³n de accesos y roles (Colaboradores y Administradores)
+            Administración de accesos y roles (Colaboradores y Administradores)
           </p>
         </div>
         <button className="btn btn-primary" onClick={handleOpenAdd}>
-          <span>âž•</span> Agregar Usuario
+          <span>➕</span> Agregar Usuario
         </button>
       </div>
 
@@ -146,10 +147,10 @@ export default function UsuariosPage() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px', marginRight: '8px' }} onClick={() => handleOpenEdit(u)}>
-                        âœï¸
+                        ✏️
                       </button>
                       <button className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '13px' }} onClick={() => handleDelete(u.id)}>
-                        ðŸ—‘ï¸
+                        🗑️
                       </button>
                     </td>
                   </tr>
@@ -160,16 +161,24 @@ export default function UsuariosPage() {
         )}
       </section>
 
-      {showModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
-            <form onSubmit={handleSubmit}>
-              <div className="modal-header">
-                <h2>{isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
-                <button type="button" className="btn" style={{ background: 'none', padding: 0 }} onClick={() => setShowModal(false)}>âŒ</button>
-              </div>
-              <div className="modal-body">
-                <div className="form-group">
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title={isEdit ? 'Editar Usuario' : 'Nuevo Usuario'}
+        as="form"
+        onSubmit={handleSubmit}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => setShowModal(false)}>
+              Cancelar
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-group">
                   <label>Nombre de Usuario</label>
                   <input
                     type="text"
@@ -191,7 +200,7 @@ export default function UsuariosPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>ContraseÃ±a {isEdit && <span style={{ fontSize: '11px', color: 'gray' }}>(Dejar en blanco para no cambiar)</span>}</label>
+                  <label>Contraseña {isEdit && <span style={{ fontSize: '11px', color: 'gray' }}>(Dejar en blanco para no cambiar)</span>}</label>
                   <input
                     type="password"
                     className="form-control"
@@ -216,7 +225,7 @@ export default function UsuariosPage() {
                   <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '10px' }}>Privilegios y Accesos (Cotejos)</label>
                   {formValues.rol === 'admin' ? (
                     <div style={{ backgroundColor: 'var(--primary-bg)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-muted)' }}>
-                      ðŸ›¡ï¸ Los administradores tienen acceso completo a todas las funciones del sistema por defecto.
+                      🛡️ Los administradores tienen acceso completo a todas las funciones del sistema por defecto.
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '10px' }}>
@@ -245,19 +254,7 @@ export default function UsuariosPage() {
                     </div>
                   )}
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" disabled={saving} onClick={() => setShowModal(false)}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Guardando...' : 'Guardar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

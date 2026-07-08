@@ -1,12 +1,13 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
+import { ensureClientesColumns } from '@/lib/schema';
 
 
 
 export async function GET(request, { params }) {
   try {
-    await ensureMetodosDesembolsoExist();
+    await ensureClientesColumns();
     const { cedula } = await params;
 
     // 1. Obtener datos del cliente
@@ -20,12 +21,12 @@ export async function GET(request, { params }) {
       FROM clientes WHERE cedula = $1
     `, [cedula]);
     if (clientRes.rows.length === 0) {
-      return NextResponse.json({ error: "No se encontrÃ³ ningÃºn cliente con esa cÃ©dula." }, { status: 404 });
+      return NextResponse.json({ error: "No se encontró ningún cliente con esa cédula." }, { status: 404 });
     }
 
     const clientData = clientRes.rows[0];
 
-    // 2. Obtener lista de prÃ©stamos del cliente
+    // 2. Obtener lista de préstamos del cliente
     const loansRes = await query(`
       SELECT 
         numero_prestamo, monto_aprobado, balance_pendiente, cuota_mensual, 
@@ -53,23 +54,9 @@ export async function GET(request, { params }) {
   }
 }
 
-async function ensureMetodosDesembolsoExist() {
-  try {
-    await query(`
-      ALTER TABLE clientes 
-      ADD COLUMN IF NOT EXISTS metodo_desembolso VARCHAR(20) DEFAULT 'efectivo',
-      ADD COLUMN IF NOT EXISTS banco_nombre VARCHAR(100),
-      ADD COLUMN IF NOT EXISTS numero_cuenta VARCHAR(50),
-      ADD COLUMN IF NOT EXISTS email VARCHAR(150)
-    `);
-  } catch (err) {
-    console.error("Error ensuring columns:", err);
-  }
-}
-
 export async function PUT(request, { params }) {
   try {
-    await ensureMetodosDesembolsoExist();
+    await ensureClientesColumns();
     const { cedula } = await params;
     const body = await request.json();
     const { nombre, telefono, telefono2, direccion, metodo_desembolso, banco_nombre, numero_cuenta, email } = body;
@@ -78,7 +65,7 @@ export async function PUT(request, { params }) {
     // Check if client exists
     const checkRes = await query("SELECT * FROM clientes WHERE cedula = $1", [cedula]);
     if (checkRes.rows.length === 0) {
-      return NextResponse.json({ error: "No se encontrÃ³ ningÃºn cliente con esta cÃ©dula." }, { status: 404 });
+      return NextResponse.json({ error: "No se encontró ningún cliente con esta cédula." }, { status: 404 });
     }
 
     const oldData = checkRes.rows[0];
@@ -113,7 +100,7 @@ export async function PUT(request, { params }) {
       cedula
     ]);
 
-    // AuditorÃ­a
+    // Auditoría
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -125,7 +112,7 @@ export async function PUT(request, { params }) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditorÃ­a:", e);
+      console.error("Error en auditoría:", e);
     }
 
     return NextResponse.json({
@@ -150,7 +137,7 @@ export async function DELETE(request, { params }) {
 
     const checkRes = await query("SELECT * FROM clientes WHERE cedula = $1", [cedula]);
     if (checkRes.rows.length === 0) {
-      return NextResponse.json({ error: "No se encontrÃ³ ningÃºn cliente con esta cÃ©dula." }, { status: 404 });
+      return NextResponse.json({ error: "No se encontró ningún cliente con esta cédula." }, { status: 404 });
     }
 
     const oldData = checkRes.rows[0];
@@ -158,12 +145,12 @@ export async function DELETE(request, { params }) {
     // Check if client has active loans
     const loansRes = await query("SELECT id FROM prestamos WHERE cedula = $1 AND estado != 'pagado'", [cedula]);
     if (loansRes.rows.length > 0) {
-      return NextResponse.json({ error: "No se puede eliminar un cliente con prÃ©stamos activos." }, { status: 400 });
+      return NextResponse.json({ error: "No se puede eliminar un cliente con préstamos activos." }, { status: 400 });
     }
 
     await query("DELETE FROM clientes WHERE cedula = $1", [cedula]);
 
-    // AuditorÃ­a
+    // Auditoría
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -174,7 +161,7 @@ export async function DELETE(request, { params }) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditorÃ­a:", e);
+      console.error("Error en auditoría:", e);
     }
 
     return NextResponse.json({

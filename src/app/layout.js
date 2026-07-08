@@ -1,5 +1,6 @@
 import "./globals.css";
 import { ToastProvider } from "@/context/ToastContext";
+import { AuthProvider } from "@/context/AuthContext";
 import AppShell from "@/components/AppShell";
 
 export const metadata = {
@@ -18,9 +19,11 @@ export default function RootLayout({ children }) {
     <html lang="es">
       <body>
         <ToastProvider>
-          <AppShell>
-            {children}
-          </AppShell>
+          <AuthProvider>
+            <AppShell>
+              {children}
+            </AppShell>
+          </AuthProvider>
         </ToastProvider>
       </body>
     </html>

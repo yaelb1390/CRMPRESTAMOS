@@ -1,9 +1,11 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/apiFetch';
+import { useAuth } from '@/context/AuthContext';
+import { formatDateTime } from '@/lib/format';
 
 export default function AuditoriaPage() {
   const { showToast } = useToast();
@@ -13,23 +15,19 @@ export default function AuditoriaPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [user, setUser] = useState(null);
-  
+
+  // Usuario desde AuthContext (antes se consultaba /api/auth/me aquí).
+  const { user, authLoading } = useAuth();
+
   const limit = 50;
 
+  // Guard admin: redirige si el usuario cargado no es administrador.
   useEffect(() => {
-    apiFetch('/api/auth/me')
-      .then(res => res.json())
-      .then(data => {
-        if (!data.user || data.user.rol !== 'admin') {
-          showToast('No tienes permisos para ver esta pÃ¡gina.', 'error');
-          router.push('/dashboard');
-        } else {
-          setUser(data.user);
-        }
-      })
-      .catch(console.error);
-  }, []);
+    if (!authLoading && (!user || user.rol !== 'admin')) {
+      showToast('No tienes permisos para ver esta página.', 'error');
+      router.push('/dashboard');
+    }
+  }, [authLoading, user, router, showToast]);
 
   const fetchLogs = async () => {
     try {
@@ -45,7 +43,7 @@ export default function AuditoriaPage() {
         showToast(data.error || 'Error al cargar los logs', 'error');
       }
     } catch (err) {
-      showToast('Error de conexiÃ³n', 'error');
+      showToast('Error de conexión', 'error');
     } finally {
       setLoading(false);
     }
@@ -57,21 +55,18 @@ export default function AuditoriaPage() {
     }
   }, [page, user]);
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleString('es-DO');
-  };
+  const formatDate = (dateStr) => formatDateTime(dateStr);
 
-  if (!user) return <div style={{ padding: '24px' }}>Verificando permisos...</div>;
+  if (!user || user.rol !== 'admin') return <div style={{ padding: '24px' }}>Verificando permisos...</div>;
 
   const totalPages = Math.ceil(totalRecords / limit) || 1;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Registro de AuditorÃ­a</h1>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Registro de Auditoría</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Historial de acciones crÃ­ticas en el sistema
+          Historial de acciones críticas en el sistema
         </p>
       </div>
 
@@ -88,7 +83,7 @@ export default function AuditoriaPage() {
                   <tr>
                     <th>Fecha</th>
                     <th>Usuario</th>
-                    <th>AcciÃ³n</th>
+                    <th>Acción</th>
                     <th>Tabla</th>
                     <th>ID Registro</th>
                     <th>Detalles</th>
@@ -111,7 +106,7 @@ export default function AuditoriaPage() {
                           <summary style={{ cursor: 'pointer', color: 'var(--primary)' }}>Ver Datos</summary>
                           <div style={{ marginTop: '8px', background: '#f8fafc', padding: '8px', borderRadius: '4px', fontSize: '12px' }}>
                             {log.datos_anteriores && <div><b>Antes:</b> <pre style={{ margin: 0 }}>{JSON.stringify(log.datos_anteriores, null, 2)}</pre></div>}
-                            {log.datos_nuevos && <div><b>DespuÃ©s:</b> <pre style={{ margin: 0 }}>{JSON.stringify(log.datos_nuevos, null, 2)}</pre></div>}
+                            {log.datos_nuevos && <div><b>Después:</b> <pre style={{ margin: 0 }}>{JSON.stringify(log.datos_nuevos, null, 2)}</pre></div>}
                           </div>
                         </details>
                       </td>
@@ -121,18 +116,18 @@ export default function AuditoriaPage() {
               </table>
             </div>
             <div className="pagination-container">
-              <span className="pagination-info">PÃ¡gina <b>{page}</b> de <b>{totalPages}</b> ({totalRecords} registros)</span>
+              <span className="pagination-info">Página <b>{page}</b> de <b>{totalPages}</b> ({totalRecords} registros)</span>
               <div className="pagination-buttons">
-                <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>â—€ï¸ Anterior</button>
-                <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Siguiente â–¶ï¸</button>
+                <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>◀️ Anterior</button>
+                <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Siguiente ▶️</button>
               </div>
             </div>
           </>
         ) : (
           <div className="empty-state">
-            <div className="empty-state-icon">ðŸ“‹</div>
+            <div className="empty-state-icon">📋</div>
             <div className="empty-state-title">No hay registros</div>
-            <div className="empty-state-desc">AÃºn no se han registrado acciones auditables en el sistema.</div>
+            <div className="empty-state-desc">Aún no se han registrado acciones auditables en el sistema.</div>
           </div>
         )}
       </section>

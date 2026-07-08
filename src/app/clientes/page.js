@@ -1,23 +1,21 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
+import { useAuth } from '@/context/AuthContext';
 import { apiFetch } from '@/lib/apiFetch';
+import { calcularResumenPrestamo } from '@/lib/cuotas';
+import { formatCurrency, formatDate as fmtDate } from '@/lib/format';
+import Modal from '@/components/Modal';
 
 function ClientesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { showToast } = useToast();
 
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    apiFetch('/api/auth/me')
-      .then(res => res.json())
-      .then(data => setUser(data.user))
-      .catch(console.error);
-  }, []);
+  // Usuario desde AuthContext (antes se consultaba /api/auth/me aquí).
+  const { user } = useAuth();
 
   const cedulaParam = searchParams.get('cedula');
 
@@ -39,7 +37,7 @@ function ClientesContent() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  // Form values â€” incluye telefono2 y mÃ©todos de desembolso
+  // Form values — incluye telefono2 y métodos de desembolso
   const [formValues, setFormValues] = useState({
     cedula: '',
     nombre: '',
@@ -56,7 +54,7 @@ function ClientesContent() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirmCedula, setDeleteConfirmCedula] = useState('');
 
-  // â”€â”€ Calculadora de PrÃ©stamo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Calculadora de Préstamo ────────────────────────────
   const [calcMonto, setCalcMonto] = useState('');
   const [calcTasa, setCalcTasa] = useState('20');
   const [calcCuotas, setCalcCuotas] = useState('12');
@@ -68,13 +66,11 @@ function ClientesContent() {
     const tasa = parseFloat(calcTasa) || 0;
     const cuotas = parseInt(calcCuotas) || 1;
     if (monto <= 0) return null;
-    const tasaDecimal = tasa / 100;
-    const interes = monto * tasaDecimal;
-    const total = monto + interes;
-    const cuotaCalc = Math.round((total / cuotas) * 100) / 100;
-    return { monto, interes, total, cuota: cuotaCalc, cuotas, tasa };
+    // Fórmula única de @/lib/cuotas (tasa en decimal).
+    const { interesTotal, totalAPagar, cuota } = calcularResumenPrestamo(monto, tasa / 100, cuotas);
+    return { monto, interes: interesTotal, total: totalAPagar, cuota, cuotas, tasa };
   })();
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ───────────────────────────────────────────────────────
 
   const fetchClients = async () => {
     try {
@@ -165,7 +161,7 @@ function ClientesContent() {
     const errors = {};
     if (!isEdit) {
       if (!formValues.cedula || !/^\d{11}$/.test(formValues.cedula)) {
-        errors.cedula = 'La cÃ©dula debe contener exactamente 11 dÃ­gitos numÃ©ricos.';
+        errors.cedula = 'La cédula debe contener exactamente 11 dígitos numéricos.';
       }
     }
     if (!formValues.nombre || formValues.nombre.trim().length < 3) {
@@ -191,7 +187,7 @@ function ClientesContent() {
         setShowAddModal(false);
         fetchClients();
       } else {
-        showToast(data.error || 'OcurriÃ³ un error.', 'error');
+        showToast(data.error || 'Ocurrió un error.', 'error');
       }
     } catch (err) {
       showToast('Error de red.', 'error');
@@ -217,7 +213,7 @@ function ClientesContent() {
         fetchClients();
         handleOpenDetail(formValues.cedula);
       } else {
-        showToast(data.error || 'OcurriÃ³ un error.', 'error');
+        showToast(data.error || 'Ocurrió un error.', 'error');
       }
     } catch (err) {
       showToast('Error de red.', 'error');
@@ -249,26 +245,18 @@ function ClientesContent() {
   };
 
   // --- Helpers de formato ---
-  const formatCurrency = (val) =>
-    new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' })
-      .format(val || 0)
-      .replace('DOP', 'RD$');
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'â€”';
-    const d = new Date(dateStr);
-    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-  };
+  // Fecha con guión largo como fallback (usa la utilidad única de @/lib/format).
+  const formatDate = (dateStr) => fmtDate(dateStr, '—');
 
   const renderScoreStars = (scoreStr) => {
     const s = scoreStr || 'nuevo';
     const stars = {
-      excelente: 'â­â­â­â­â­ Excelente',
-      muy_bueno: 'â­â­â­â­ Muy Bueno',
-      bueno: 'â­â­â­ Bueno',
-      regular: 'â­â­ Regular',
-      riesgoso: 'â­ Riesgoso',
-      nuevo: 'ðŸ†• Nuevo Cliente'
+      excelente: '⭐⭐⭐⭐⭐ Excelente',
+      muy_bueno: '⭐⭐⭐⭐ Muy Bueno',
+      bueno: '⭐⭐⭐ Bueno',
+      regular: '⭐⭐ Regular',
+      riesgoso: '⭐ Riesgoso',
+      nuevo: '🆕 Nuevo Cliente'
     };
     const colors = {
       excelente: '#10B981', muy_bueno: '#3B82F6', bueno: '#F59E0B',
@@ -277,7 +265,7 @@ function ClientesContent() {
     return <span style={{ color: colors[s], fontWeight: 'bold' }}>{stars[s]}</span>;
   };
 
-  // CÃ¡lculo de totales del historial
+  // Cálculo de totales del historial
   const calcularTotalesHistorial = (prestamos = []) => {
     const total = prestamos.reduce((acc, p) => {
       acc.capitalPrestado += parseFloat(p.monto_aprobado) || 0;
@@ -293,17 +281,17 @@ function ClientesContent() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1>MÃ³dulo de Clientes</h1>
+          <h1>Módulo de Clientes</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-            Listado y administraciÃ³n de clientes activos e histÃ³ricos
+            Listado y administración de clientes activos e históricos
           </p>
         </div>
         <button className="btn btn-primary" onClick={handleOpenAdd}>
-          <span>âž•</span> Agregar Cliente
+          <span>➕</span> Agregar Cliente
         </button>
       </div>
 
-      {/* Tabs + BÃºsqueda */}
+      {/* Tabs + Búsqueda */}
       <section className="filters-bar" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '8px', borderBottom: '2px solid var(--border-color)', flex: 1 }}>
           {['activos', 'historicos'].map(tab => (
@@ -318,7 +306,7 @@ function ClientesContent() {
                 cursor: 'pointer', textTransform: 'capitalize'
               }}
             >
-              {tab === 'activos' ? 'Clientes Activos' : 'Clientes HistÃ³ricos'}
+              {tab === 'activos' ? 'Clientes Activos' : 'Clientes Históricos'}
             </button>
           ))}
         </div>
@@ -326,7 +314,7 @@ function ClientesContent() {
           <input
             type="text"
             className="form-control"
-            placeholder="Buscar por cÃ©dula o nombre..."
+            placeholder="Buscar por cédula o nombre..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
@@ -346,12 +334,12 @@ function ClientesContent() {
                 <thead>
                   <tr>
                     <th>Nombre Completo</th>
-                    <th>CÃ©dula</th>
-                    <th>CalificaciÃ³n</th>
-                    <th>PrÃ©stamos Totales</th>
+                    <th>Cédula</th>
+                    <th>Calificación</th>
+                    <th>Préstamos Totales</th>
                     {activeTab === 'activos'
                       ? <th>Capital Pendiente</th>
-                      : <th>PrÃ©stamos Liquidados</th>
+                      : <th>Préstamos Liquidados</th>
                     }
                     <th style={{ textAlign: 'right' }}>Acciones</th>
                   </tr>
@@ -375,7 +363,7 @@ function ClientesContent() {
                       <td style={{ textAlign: 'right' }}>
                         <button className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '13px' }}
                           onClick={() => handleOpenDetail(client.cedula)}>
-                          ðŸ‘ï¸ Perfil Completo
+                          👁️ Perfil Completo
                         </button>
                       </td>
                     </tr>
@@ -384,32 +372,44 @@ function ClientesContent() {
               </table>
             </div>
             <div className="pagination-container">
-              <span className="pagination-info">PÃ¡gina <b>{page}</b> de <b>{totalPages}</b> ({totalRecords} clientes)</span>
+              <span className="pagination-info">Página <b>{page}</b> de <b>{totalPages}</b> ({totalRecords} clientes)</span>
               <div className="pagination-buttons">
-                <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>â—€ï¸ Anterior</button>
-                <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Siguiente â–¶ï¸</button>
+                <button className="btn btn-secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(p - 1, 1))}>◀️ Anterior</button>
+                <button className="btn btn-secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(p + 1, totalPages))}>Siguiente ▶️</button>
               </div>
             </div>
           </>
         ) : (
           <div className="empty-state">
-            <div className="empty-state-icon">ðŸ‘¥</div>
+            <div className="empty-state-icon">👥</div>
             <div className="empty-state-title">No se encontraron clientes</div>
           </div>
         )}
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ══════════════════════════════════════════
           MODAL DETALLE DEL CLIENTE
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-      {showDetailModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '860px', width: '100%' }}>
-            <div className="modal-header">
-              <h2>Perfil del Cliente</h2>
-              <button className="btn" style={{ background: 'none', padding: 0 }} onClick={() => setShowDetailModal(false)}>âŒ</button>
+      ══════════════════════════════════════════ */}
+      <Modal
+        open={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        title="Perfil del Cliente"
+        maxWidth="860px"
+        contentStyle={{ width: '100%' }}
+        bodyStyle={{ maxHeight: '75vh', overflowY: 'auto' }}
+        footerStyle={{ justifyContent: 'space-between' }}
+        footer={
+          <>
+            {user?.rol === 'admin' ? (
+              <button className="btn btn-danger" onClick={handleOpenDelete}>🗑️ Eliminar Cliente</button>
+            ) : <div></div>}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowDetailModal(false)}>Cerrar</button>
+              <button className="btn btn-primary" onClick={handleOpenEdit}>✏️ Editar Datos</button>
             </div>
-            <div className="modal-body" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+          </>
+        }
+      >
               {detailLoading || !selectedClient ? (
                 <div style={{ padding: '24px' }}>
                   {[...Array(4)].map((_, i) => <div key={i} className="shimmer shimmer-row" style={{ marginBottom: '12px' }}></div>)}
@@ -424,7 +424,7 @@ function ClientesContent() {
                       <div>
                         <h2 style={{ fontSize: '22px', margin: 0 }}>{selectedClient.nombre}</h2>
                         <div style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-                          CÃ©dula: <b>{selectedClient.cedula}</b> &nbsp;|&nbsp;
+                          Cédula: <b>{selectedClient.cedula}</b> &nbsp;|&nbsp;
                           Cliente desde: {formatDate(selectedClient.created_at)}
                         </div>
                       </div>
@@ -442,36 +442,36 @@ function ClientesContent() {
                       padding: '14px', border: '1px solid var(--border-color)'
                     }}>
                       <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>ðŸ“ž TelÃ©fono Principal</div>
-                        <div style={{ fontWeight: '600' }}>{selectedClient.telefono || 'â€”'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>📞 Teléfono Principal</div>
+                        <div style={{ fontWeight: '600' }}>{selectedClient.telefono || '—'}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>ðŸ“± WhatsApp</div>
-                        <div style={{ fontWeight: '600' }}>{selectedClient.telefono2 || 'â€”'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>📱 WhatsApp</div>
+                        <div style={{ fontWeight: '600' }}>{selectedClient.telefono2 || '—'}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>ðŸ“§ Correo ElectrÃ³nico</div>
-                        <div style={{ fontWeight: '600' }}>{selectedClient.email || 'â€”'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>📧 Correo Electrónico</div>
+                        <div style={{ fontWeight: '600' }}>{selectedClient.email || '—'}</div>
                       </div>
                       <div style={{ gridColumn: '1 / -1' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>ðŸ“ DirecciÃ³n</div>
-                        <div style={{ fontWeight: '600' }}>{selectedClient.direccion || 'â€”'}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '600', marginBottom: '4px' }}>📍 Dirección</div>
+                        <div style={{ fontWeight: '600' }}>{selectedClient.direccion || '—'}</div>
                       </div>
                     </div>
 
-                    {/* MÃ©tricas financieras del cliente */}
+                    {/* Métricas financieras del cliente */}
                     <div>
                       <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
                         Resumen Financiero del Cliente
                       </h3>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
                         {[
-                          { label: 'Total PrÃ©stamos', value: selectedClient.total_prestamos, color: 'var(--primary)' },
+                          { label: 'Total Préstamos', value: selectedClient.total_prestamos, color: 'var(--primary)' },
                           { label: 'Liquidados', value: selectedClient.prestamos_liquidados, color: 'var(--success)' },
                           { label: 'Capital Prestado', value: formatCurrency(totales.capitalPrestado), color: 'inherit' },
                           { label: 'Capital Recuperado', value: formatCurrency(totales.capitalPagado), color: 'var(--success)' },
                           { label: 'Balance Pendiente', value: formatCurrency(totales.pendiente), color: totales.pendiente > 0 ? 'var(--danger)' : 'var(--success)' },
-                          { label: 'MÃ¡x. DÃ­as Atraso', value: `${selectedClient.max_dias_atraso || 0} dÃ­as`, color: selectedClient.max_dias_atraso > 0 ? 'var(--warning)' : 'var(--success)' },
+                          { label: 'Máx. Días Atraso', value: `${selectedClient.max_dias_atraso || 0} días`, color: selectedClient.max_dias_atraso > 0 ? 'var(--warning)' : 'var(--success)' },
                         ].map((m, i) => (
                           <div key={i} style={{
                             background: 'var(--card-bg)', border: '1px solid var(--border-color)',
@@ -484,13 +484,13 @@ function ClientesContent() {
                       </div>
                     </div>
 
-                    {/* Historial de prÃ©stamos */}
+                    {/* Historial de préstamos */}
                     <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <h3 style={{ margin: 0 }}>Historial de PrÃ©stamos con la InstituciÃ³n</h3>
+                        <h3 style={{ margin: 0 }}>Historial de Préstamos con la Institución</h3>
                         <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '13px' }}
                           onClick={() => { setShowDetailModal(false); router.push(`/prestamos?cedula=${selectedClient.cedula}`); }}>
-                          ðŸ’° Otorgar Nuevo PrÃ©stamo
+                          💰 Otorgar Nuevo Préstamo
                         </button>
                       </div>
 
@@ -500,7 +500,7 @@ function ClientesContent() {
                             <thead>
                               <tr>
                                 <th>#</th>
-                                <th>PrÃ©stamo</th>
+                                <th>Préstamo</th>
                                 <th>Monto Aprobado</th>
                                 <th>Total a Pagar</th>
                                 <th>Balance Pend.</th>
@@ -513,8 +513,8 @@ function ClientesContent() {
                             </thead>
                             <tbody>
                               {selectedClient.prestamos.map((p, idx) => {
-                                // El "total a pagar" es lo que se calcula: balance original = monto + interÃ©s
-                                // Si balance_pendiente > monto_aprobado, el total es balance (incluye interÃ©s)
+                                // El "total a pagar" es lo que se calcula: balance original = monto + interés
+                                // Si balance_pendiente > monto_aprobado, el total es balance (incluye interés)
                                 // De otra forma usamos monto_aprobado como base
                                 const balanceOriginal = parseFloat(p.balance_original || p.balance_pendiente + (p.monto_aprobado - p.balance_pendiente));
                                 const totalAPagar = parseFloat(p.monto_aprobado) + (parseFloat(p.monto_interes) || 0);
@@ -529,9 +529,9 @@ function ClientesContent() {
                                       </code>
                                       <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
                                         {p.metodo_desembolso === 'banco' ? (
-                                          <span>ðŸ¦ <b>{p.banco_nombre}</b>: {p.numero_cuenta}</span>
+                                          <span>🏦 <b>{p.banco_nombre}</b>: {p.numero_cuenta}</span>
                                         ) : (
-                                          <span>ðŸ’µ Efectivo</span>
+                                          <span>💵 Efectivo</span>
                                         )}
                                       </div>
                                     </td>
@@ -540,7 +540,7 @@ function ClientesContent() {
                                       {formatCurrency(totalAPagar)}
                                       {p.tasa_interes > 0 && (
                                         <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                                          ({(parseFloat(p.tasa_interes) * 100).toFixed(1)}% interÃ©s)
+                                          ({(parseFloat(p.tasa_interes) * 100).toFixed(1)}% interés)
                                         </div>
                                       )}
                                     </td>
@@ -550,7 +550,7 @@ function ClientesContent() {
                                     <td>{formatCurrency(p.cuota_mensual)}</td>
                                     <td style={{ textTransform: 'capitalize' }}>{p.tipo_frecuencia || 'mensual'}</td>
                                     <td style={{ textAlign: 'center' }}>
-                                      <span style={{ fontSize: '12px' }}>{p.cuotas_pagadas || 0}/{p.total_cuotas || 'â€”'}</span>
+                                      <span style={{ fontSize: '12px' }}>{p.cuotas_pagadas || 0}/{p.total_cuotas || '—'}</span>
                                     </td>
                                     <td style={{ whiteSpace: 'nowrap' }}>{formatDate(p.fecha_inicio || p.created_at)}</td>
                                     <td><span className={`badge badge-${p.estado}`}>{p.estado}</span></td>
@@ -561,9 +561,9 @@ function ClientesContent() {
                             {/* Fila de totales */}
                             <tfoot>
                               <tr style={{ background: 'var(--primary-bg)', fontWeight: '700' }}>
-                                <td colSpan="2" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>TOTALES ({selectedClient.prestamos.length} prÃ©stamos)</td>
+                                <td colSpan="2" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>TOTALES ({selectedClient.prestamos.length} préstamos)</td>
                                 <td>{formatCurrency(totales.capitalPrestado)}</td>
-                                <td>â€”</td>
+                                <td>—</td>
                                 <td style={{ color: totales.pendiente > 0 ? 'var(--danger)' : 'var(--success)' }}>
                                   {formatCurrency(totales.pendiente)}
                                 </td>
@@ -574,43 +574,38 @@ function ClientesContent() {
                         </div>
                       ) : (
                         <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--primary-bg)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-color)' }}>
-                          <div style={{ fontSize: '32px', marginBottom: '8px' }}>ðŸ’¼</div>
-                          <div>Este cliente aÃºn no tiene prÃ©stamos registrados.</div>
+                          <div style={{ fontSize: '32px', marginBottom: '8px' }}>💼</div>
+                          <div>Este cliente aún no tiene préstamos registrados.</div>
                         </div>
                       )}
                     </div>
                   </div>
                 );
               })()}
-            </div>
-            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-              {user?.rol === 'admin' ? (
-                <button className="btn btn-danger" onClick={handleOpenDelete}>ðŸ—‘ï¸ Eliminar Cliente</button>
-              ) : <div></div>}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-secondary" onClick={() => setShowDetailModal(false)}>Cerrar</button>
-                <button className="btn btn-primary" onClick={handleOpenEdit}>âœï¸ Editar Datos</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ══════════════════════════════════════════
           MODAL AGREGAR / EDITAR CLIENTE
-      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-      {(showAddModal || showEditModal) && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: showAddModal ? '960px' : '600px', width: '96vw' }}>
-            <form onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit}>
-              <div className="modal-header">
-                <h2>{showAddModal ? 'ðŸ‘¤ Registrar Nuevo Cliente' : 'âœï¸ Editar Cliente'}</h2>
-                <button type="button" className="btn" style={{ background: 'none', padding: 0 }}
-                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>âŒ</button>
-              </div>
-
-              {/* BODY â€” layout horizontal */}
-              <div className="modal-body" style={{ padding: '20px 24px' }}>
+      ══════════════════════════════════════════ */}
+      <Modal
+        open={showAddModal || showEditModal}
+        onClose={() => { setShowAddModal(false); setShowEditModal(false); }}
+        title={showAddModal ? '👤 Registrar Nuevo Cliente' : '✏️ Editar Cliente'}
+        as="form"
+        onSubmit={showAddModal ? handleAddSubmit : handleEditSubmit}
+        maxWidth={showAddModal ? '960px' : '600px'}
+        contentStyle={{ width: '96vw' }}
+        bodyStyle={{ padding: '20px 24px' }}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" disabled={saving}
+              onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Guardando...' : showAddModal ? '✅ Registrar Cliente' : '💾 Guardar Cambios'}
+            </button>
+          </>
+        }
+      >
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: showAddModal ? '1fr 1fr' : '1fr',
@@ -618,16 +613,16 @@ function ClientesContent() {
                   alignItems: 'flex-start'
                 }}>
 
-                  {/* â”€â”€ COLUMNA IZQUIERDA: Datos del cliente â”€â”€ */}
+                  {/* ── COLUMNA IZQUIERDA: Datos del cliente ── */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em', paddingBottom: '6px', borderBottom: '1px solid var(--border-color)' }}>
-                      ðŸ“‹ Datos Personales
+                      📋 Datos Personales
                     </div>
 
-                    {/* CÃ©dula + Nombre */}
+                    {/* Cédula + Nombre */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>CÃ©dula (11 dÃ­gitos) <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        <label>Cédula (11 dígitos) <span style={{ color: 'var(--danger)' }}>*</span></label>
                         <input
                           type="text" maxLength={11} disabled={showEditModal}
                           className={`form-control ${formErrors.cedula ? 'is-invalid' : ''}`}
@@ -644,38 +639,38 @@ function ClientesContent() {
                           className={`form-control ${formErrors.nombre ? 'is-invalid' : ''}`}
                           value={formValues.nombre}
                           onChange={(e) => setFormValues({ ...formValues, nombre: e.target.value })}
-                          placeholder="Juan PÃ©rez GarcÃ­a"
+                          placeholder="Juan Pérez García"
                         />
                         {formErrors.nombre && <div className="invalid-feedback">{formErrors.nombre}</div>}
                       </div>
                     </div>
 
-                    {/* TelÃ©fonos */}
+                    {/* Teléfonos */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>ðŸ“ž TelÃ©fono Principal</label>
+                        <label>📞 Teléfono Principal</label>
                         <input type="tel" className="form-control" value={formValues.telefono}
                           onChange={(e) => setFormValues({ ...formValues, telefono: e.target.value })}
                           placeholder="809-000-0000" />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>ðŸ“± WhatsApp <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(opcional)</span></label>
+                        <label>📱 WhatsApp <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(opcional)</span></label>
                         <input type="tel" className="form-control" value={formValues.telefono2}
                           onChange={(e) => setFormValues({ ...formValues, telefono2: e.target.value })}
                           placeholder="829-000-0000" />
                       </div>
                     </div>
 
-                    {/* DirecciÃ³n + Email */}
+                    {/* Dirección + Email */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>ðŸ“ DirecciÃ³n</label>
+                        <label>📍 Dirección</label>
                         <input type="text" className="form-control" value={formValues.direccion}
                           onChange={(e) => setFormValues({ ...formValues, direccion: e.target.value })}
                           placeholder="Calle, No., Sector, Ciudad" />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>ðŸ“§ Correo <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(opcional)</span></label>
+                        <label>📧 Correo <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(opcional)</span></label>
                         <input type="email" className="form-control" value={formValues.email}
                           onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
                           placeholder="cliente@email.com" />
@@ -685,14 +680,14 @@ function ClientesContent() {
                     {/* Desembolso */}
                     <div style={{ paddingTop: '12px', borderTop: '1px dashed var(--border-color)' }}>
                       <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '10px' }}>
-                        ðŸ’³ Preferencia de Desembolso
+                        💳 Preferencia de Desembolso
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label>MÃ©todo Preferido</label>
+                        <label>Método Preferido</label>
                         <select className="form-control" value={formValues.metodo_desembolso}
                           onChange={(e) => setFormValues({ ...formValues, metodo_desembolso: e.target.value })}>
-                          <option value="efectivo">ðŸ’µ Efectivo</option>
-                          <option value="banco">ðŸ¦ DepÃ³sito Bancario</option>
+                          <option value="efectivo">💵 Efectivo</option>
+                          <option value="banco">🏦 Depósito Bancario</option>
                         </select>
                       </div>
 
@@ -706,14 +701,14 @@ function ClientesContent() {
                               <option value="Banco Popular">Banco Popular</option>
                               <option value="Banreservas">Banreservas</option>
                               <option value="BHD">BHD</option>
-                              <option value="AsociaciÃ³n Popular (APAP)">AsociaciÃ³n Popular (APAP)</option>
+                              <option value="Asociación Popular (APAP)">Asociación Popular (APAP)</option>
                               <option value="Scotiabank">Scotiabank</option>
-                              <option value="AsociaciÃ³n Cibao">AsociaciÃ³n Cibao</option>
+                              <option value="Asociación Cibao">Asociación Cibao</option>
                               <option value="Otro">Otro</option>
                             </select>
                           </div>
                           <div className="form-group" style={{ margin: 0 }}>
-                            <label>NÃºmero de Cuenta</label>
+                            <label>Número de Cuenta</label>
                             <input type="text" className="form-control" value={formValues.numero_cuenta}
                               onChange={(e) => setFormValues({ ...formValues, numero_cuenta: e.target.value })}
                               placeholder="000-000000-0" />
@@ -723,7 +718,7 @@ function ClientesContent() {
                     </div>
                   </div>
 
-                  {/* â”€â”€ COLUMNA DERECHA: Calculadora (solo al agregar) â”€â”€ */}
+                  {/* ── COLUMNA DERECHA: Calculadora (solo al agregar) ── */}
                   {showAddModal && (
                     <div style={{
                       background: 'linear-gradient(160deg, rgba(30,58,95,0.05) 0%, rgba(16,185,129,0.04) 100%)',
@@ -731,7 +726,7 @@ function ClientesContent() {
                       padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px'
                     }}>
                       <div style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        ðŸ§® Calculadora de PrÃ©stamo
+                        🧮 Calculadora de Préstamo
                       </div>
 
                       {/* Monto + Tasa */}
@@ -743,8 +738,8 @@ function ClientesContent() {
                         </div>
                         <div className="form-group" style={{ margin: 0 }}>
                           <label style={{ fontSize: '12px' }}>
-                            Tasa de interÃ©s (%)
-                            {user?.rol !== 'admin' && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--warning)', fontWeight: '700' }}>ðŸ”’ Solo Admin</span>}
+                            Tasa de interés (%)
+                            {user?.rol !== 'admin' && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--warning)', fontWeight: '700' }}>🔒 Solo Admin</span>}
                           </label>
                           <div style={{ position: 'relative' }}>
                             <input type="number" className="form-control" value={calcTasa}
@@ -762,10 +757,10 @@ function ClientesContent() {
                         <div className="form-group" style={{ margin: 0 }}>
                           <label style={{ fontSize: '12px' }}>Frecuencia</label>
                           <select className="form-control" value={calcFreq} onChange={e => setCalcFreq(e.target.value)}>
-                            <option value="diario">ðŸ“† Diario</option>
-                            <option value="semanal">ðŸ“† Semanal</option>
-                            <option value="quincenal">ðŸ“† Quincenal</option>
-                            <option value="mensual">ðŸ“† Mensual</option>
+                            <option value="diario">📆 Diario</option>
+                            <option value="semanal">📆 Semanal</option>
+                            <option value="quincenal">📆 Quincenal</option>
+                            <option value="mensual">📆 Mensual</option>
                           </select>
                         </div>
                         <div className="form-group" style={{ margin: 0 }}>
@@ -784,7 +779,7 @@ function ClientesContent() {
                               <div style={{ fontWeight: '700', fontSize: '14px' }}>{formatCurrency(calcResultado.monto)}</div>
                             </div>
                             <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '10px' }}>
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '3px', textTransform: 'uppercase', fontWeight: '600' }}>InterÃ©s ({calcResultado.tasa}%)</div>
+                              <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '3px', textTransform: 'uppercase', fontWeight: '600' }}>Interés ({calcResultado.tasa}%)</div>
                               <div style={{ fontWeight: '700', fontSize: '14px', color: 'var(--warning)' }}>+ {formatCurrency(calcResultado.interes)}</div>
                             </div>
                             <div style={{ background: 'linear-gradient(135deg, var(--primary) 0%, #1e5a9c 100%)', borderRadius: 'var(--radius-sm)', padding: '10px' }}>
@@ -800,68 +795,52 @@ function ClientesContent() {
                           </div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', borderTop: '1px dashed var(--border-color)', paddingTop: '8px', lineHeight: '1.5' }}>
                             {calcResultado.cuotas} cuotas {calcFreq === 'diario' ? 'diarias' : calcFreq === 'semanal' ? 'semanales' : calcFreq === 'quincenal' ? 'quincenales' : 'mensuales'} de {formatCurrency(calcResultado.cuota)}<br/>
-                            <span style={{ fontStyle: 'italic' }}>Este cÃ¡lculo es orientativo. El prÃ©stamo se formaliza en el mÃ³dulo de PrÃ©stamos.</span>
+                            <span style={{ fontStyle: 'italic' }}>Este cálculo es orientativo. El préstamo se formaliza en el módulo de Préstamos.</span>
                           </div>
                         </>
                       ) : (
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', color: 'var(--text-muted)', textAlign: 'center', gap: '8px' }}>
-                          <div style={{ fontSize: '36px' }}>ðŸ’¡</div>
-                          <div style={{ fontSize: '13px' }}>Ingresa el monto para ver el cÃ¡lculo estimado de cuotas en tiempo real.</div>
+                          <div style={{ fontSize: '36px' }}>💡</div>
+                          <div style={{ fontSize: '13px' }}>Ingresa el monto para ver el cálculo estimado de cuotas en tiempo real.</div>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" disabled={saving}
-                  onClick={() => { setShowAddModal(false); setShowEditModal(false); }}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Guardando...' : showAddModal ? 'âœ… Registrar Cliente' : 'ðŸ’¾ Guardar Cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
 
 
 
       {/* MODAL ELIMINAR */}
-      {showDeleteModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>Eliminar Cliente</h2>
-            </div>
-            <div className="modal-body">
-              <p>Â¿EstÃ¡s seguro de eliminar a <b>{selectedClient?.nombre}</b>? Esta acciÃ³n no se puede deshacer.</p>
-              <div className="form-group" style={{ marginTop: '12px' }}>
-                <label>Escribe la cÃ©dula para confirmar</label>
-                <input type="text" className="form-control" placeholder={selectedClient?.cedula}
-                  value={deleteConfirmCedula} onChange={(e) => setDeleteConfirmCedula(e.target.value)} />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
-              <button className="btn btn-danger"
-                disabled={deleteConfirmCedula !== selectedClient?.cedula || saving}
-                onClick={handleDeleteSubmit}>
-                {saving ? 'Eliminando...' : 'Confirmar EliminaciÃ³n'}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open={showDeleteModal}
+        title="Eliminar Cliente"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
+            <button className="btn btn-danger"
+              disabled={deleteConfirmCedula !== selectedClient?.cedula || saving}
+              onClick={handleDeleteSubmit}>
+              {saving ? 'Eliminando...' : 'Confirmar Eliminación'}
+            </button>
+          </>
+        }
+      >
+        <p>¿Estás seguro de eliminar a <b>{selectedClient?.nombre}</b>? Esta acción no se puede deshacer.</p>
+        <div className="form-group" style={{ marginTop: '12px' }}>
+          <label>Escribe la cédula para confirmar</label>
+          <input type="text" className="form-control" placeholder={selectedClient?.cedula}
+            value={deleteConfirmCedula} onChange={(e) => setDeleteConfirmCedula(e.target.value)} />
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
 
 export default function ClientesPage() {
   return (
-    <Suspense fallback={<div>Cargando mÃ³dulo...</div>}>
+    <Suspense fallback={<div>Cargando módulo...</div>}>
       <ClientesContent />
     </Suspense>
   );
