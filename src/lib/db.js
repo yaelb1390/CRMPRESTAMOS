@@ -46,4 +46,39 @@ export async function query(text, params) {
   }
 }
 
+/**
+ * Run a set of statements inside a single atomic transaction.
+ *
+ * The callback receives a query function `q(text, params)` that is bound to ONE
+ * dedicated client checked out from the pool, so BEGIN/COMMIT/ROLLBACK and every
+ * statement in between share the same connection. This is required for correctness
+ * in money-handling paths — do NOT use the pooled `query()` (which may run each
+ * statement on a different connection, and retries) inside a transaction.
+ *
+ * COMMIT on success, ROLLBACK if the callback throws; the client is always released.
+ *
+ * @template T
+ * @param {(q: (text: string, params?: any[]) => Promise<import('pg').QueryResult>, client: import('pg').PoolClient) => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withTransaction(fn) {
+  const client = await pool.connect();
+  const q = (text, params) => client.query(text, params);
+  try {
+    await client.query('BEGIN');
+    const result = await fn(q, client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      console.error(`Transaction rollback failed: ${rollbackErr.message}`);
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export default pool;

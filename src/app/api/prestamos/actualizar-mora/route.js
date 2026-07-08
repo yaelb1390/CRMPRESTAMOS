@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { calcularDiasAtraso } from '@/lib/fechas';
+import { calcularMora } from '@/lib/mora';
 
 /**
  * POST /api/prestamos/actualizar-mora
@@ -17,7 +19,8 @@ export async function POST() {
   try {
     // 1. Traer todos los préstamos que aún tienen balance pendiente
     const prestamosRes = await query(`
-      SELECT numero_prestamo, fecha_proximo_pago, estado, tipo_frecuencia, dias_atraso
+      SELECT numero_prestamo, fecha_proximo_pago, estado, tipo_frecuencia, dias_atraso,
+             cuota_mensual, mora_acumulada
       FROM prestamos
       WHERE estado IN ('activo', 'atrasado') AND balance_pendiente > 0
     `);
@@ -49,17 +52,24 @@ export async function POST() {
 
       fechaRef.setHours(0, 0, 0, 0);
 
-      // 3. Calcular días de atraso reales
-      const diffMs = hoy - fechaRef;
-      const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      const diasAtraso = Math.max(0, diffDias);
+      // 3. Calcular días de atraso reales (fuente única)
+      const diasAtraso = calcularDiasAtraso(fechaRef, hoy);
 
       const nuevoEstado = diasAtraso > 0 ? 'atrasado' : 'activo';
+
+      // 3b. Calcular mora acumulada (aplica días de gracia y % diario de configuración)
+      const moraAcumulada = await calcularMora(
+        parseFloat(prestamo.cuota_mensual) || 0,
+        diasAtraso,
+        prestamo.tipo_frecuencia || 'mensual'
+      );
+      const moraAnterior = parseFloat(prestamo.mora_acumulada) || 0;
 
       // 4. Actualizar solo si hay cambio (optimización)
       if (
         parseInt(prestamo.dias_atraso) !== diasAtraso ||
         prestamo.estado !== nuevoEstado ||
+        moraAnterior !== moraAcumulada ||
         new Date(prestamo.fecha_proximo_pago).toDateString() !== fechaRef.toDateString()
       ) {
         // Generar string local para evitar UTC shift
@@ -72,12 +82,14 @@ export async function POST() {
           UPDATE prestamos
           SET dias_atraso = $1,
               estado = $2,
-              fecha_proximo_pago = $3
-          WHERE numero_prestamo = $4
+              fecha_proximo_pago = $3,
+              mora_acumulada = $4
+          WHERE numero_prestamo = $5
         `, [
           diasAtraso,
           nuevoEstado,
           fechaLocalString,
+          moraAcumulada,
           prestamo.numero_prestamo
         ]);
         actualizados++;
