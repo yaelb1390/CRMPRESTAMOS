@@ -1,9 +1,9 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { getSecretKey } from '@/lib/auth';
 
 // Define the public and protected routes
-const publicRoutes = ['/login', '/api/auth/login'];
+const publicRoutes = ['/login', '/api/auth/login', '/api/configuracion/logo'];
 const adminOnlyRoutes = ['/dashboard', '/prestamos', '/usuarios', '/reportes', '/api/reportes'];
 const collaboratorAllowedRoutes = [
   '/clientes', 
@@ -39,7 +39,7 @@ export async function proxy(request) {
 
   if (!token && !isPublicRoute) {
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesiÃ³n.' }, { status: 401 });
+      return NextResponse.json({ error: 'No autorizado. Debe iniciar sesión.' }, { status: 401 });
     }
     // Redirect to login if unauthenticated and trying to access protected route
     const url = request.nextUrl.clone();
@@ -93,7 +93,7 @@ export async function proxy(request) {
 
     } catch (error) {
       if (pathname.startsWith('/api/')) {
-        const response = NextResponse.json({ error: 'SesiÃ³n invÃ¡lida o expirada.' }, { status: 401 });
+        const response = NextResponse.json({ error: 'Sesión inválida o expirada.' }, { status: 401 });
         response.cookies.delete('auth_token');
         return response;
       }
