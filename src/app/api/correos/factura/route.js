@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import nodemailer from 'nodemailer';
+import { formatCurrency } from '@/lib/format';
 
 export async function POST(request) {
   try {
@@ -57,8 +58,7 @@ export async function POST(request) {
       },
     });
 
-    // Formatear montos
-    const formatCurrency = (val) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(val || 0).replace('DOP', 'RD$');
+    // Formatear montos (usa la utilidad única de @/lib/format)
     const balanceAnterior = parseFloat(pago.monto_pagado) + parseFloat(pago.balance_pendiente);
 
     // Obtener URL del logo (esto asume que el sistema está en un dominio público, si es local usaremos una imagen incrustada o URL absoluta si existe)

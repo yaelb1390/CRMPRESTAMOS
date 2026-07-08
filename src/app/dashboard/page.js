@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch } from '@/lib/apiFetch';
+import { formatCurrency } from '@/lib/format';
 
 export default function DashboardPage() {
   const { showToast } = useToast();
@@ -22,7 +23,7 @@ export default function DashboardPage() {
       setData(json);
     } catch (err) {
       console.error(err);
-      setError('No se pudo conectar a la base de datos. Verifique la configuraciÃ³n.');
+      setError('No se pudo conectar a la base de datos. Verifique la configuración.');
       showToast('No se pudo conectar a la base de datos.', 'error');
     } finally {
       setLoading(false);
@@ -33,13 +34,6 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, []);
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-DO', {
-      style: 'currency',
-      currency: 'DOP',
-      minimumFractionDigits: 2
-    }).format(value).replace('DOP', 'RD$');
-  };
 
   if (loading) {
     return (
@@ -60,10 +54,10 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="card empty-state" style={{ borderTop: '4px solid var(--danger)' }}>
-        <div className="empty-state-icon">âš ï¸</div>
-        <div className="empty-state-title">Error de ConexiÃ³n</div>
+        <div className="empty-state-icon">⚠️</div>
+        <div className="empty-state-title">Error de Conexión</div>
         <div className="empty-state-desc">{error}</div>
-        <button className="btn btn-primary" onClick={fetchDashboardData}>Reintentar ConexiÃ³n</button>
+        <button className="btn btn-primary" onClick={fetchDashboardData}>Reintentar Conexión</button>
       </div>
     );
   }
@@ -75,7 +69,7 @@ export default function DashboardPage() {
       <div>
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>Resumen General Financiero</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          MÃ©tricas clave del negocio y estado de cartera en tiempo real
+          Métricas clave del negocio y estado de cartera en tiempo real
         </p>
       </div>
 
@@ -113,7 +107,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Secondary Metrics Grid */}
-      <h3 style={{ fontSize: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginTop: '16px' }}>Clientes y PrÃ©stamos</h3>
+      <h3 style={{ fontSize: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginTop: '16px' }}>Clientes y Préstamos</h3>
       <section className="metrics-grid">
         <div className="card metric-card metric-card-cartera">
           <div className="metric-icon" style={{ color: 'var(--primary)' }}>
@@ -126,7 +120,7 @@ export default function DashboardPage() {
           <div className="metric-icon" style={{ color: 'var(--info)' }}>
             <svg viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
           </div>
-          <span className="metric-title">Clientes HistÃ³ricos</span>
+          <span className="metric-title">Clientes Históricos</span>
           <span className="metric-value">{metrics.clientesHistoricos}</span>
         </div>
         <div className="card metric-card metric-card-activos">
@@ -148,21 +142,21 @@ export default function DashboardPage() {
           <div className="metric-icon" style={{ color: 'var(--secondary)' }}>
             <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <span className="metric-title">PrÃ©stamos Activos</span>
+          <span className="metric-title">Préstamos Activos</span>
           <span className="metric-value">{metrics.prestamosActivos}</span>
         </div>
         <div className="card metric-card metric-card-total-clientes">
           <div className="metric-icon" style={{ color: 'var(--info)' }}>
             <svg viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
           </div>
-          <span className="metric-title">PrÃ©stamos Liquidados</span>
+          <span className="metric-title">Préstamos Liquidados</span>
           <span className="metric-value">{metrics.prestamosLiquidados}</span>
         </div>
         <div className="card metric-card metric-card-vencimientos-hoy">
           <div className="metric-icon" style={{ color: 'var(--danger)', backgroundColor: 'var(--danger-light)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
-          <span className="metric-title">PrÃ©stamos en Mora</span>
+          <span className="metric-title">Préstamos en Mora</span>
           <span className="metric-value" style={{ color: 'var(--danger)' }}>{metrics.prestamosEnMora}</span>
         </div>
       </section>
@@ -171,8 +165,8 @@ export default function DashboardPage() {
       <div className="dashboard-sections-grid">
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px', gridColumn: '1 / -1' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>Alertas CrÃ­ticas de Mora (Top 20)</h2>
-            <span className="badge badge-atrasado">{alertas.length} prÃ©stamos requieren atenciÃ³n</span>
+            <h2>Alertas Críticas de Mora (Top 20)</h2>
+            <span className="badge badge-atrasado">{alertas.length} préstamos requieren atención</span>
           </div>
 
           <div className="table-container" style={{ flex: 1, borderBottomLeftRadius: 'var(--radius-md)', borderBottomRightRadius: 'var(--radius-md)' }}>
@@ -181,10 +175,10 @@ export default function DashboardPage() {
                 <thead>
                   <tr>
                     <th>Cliente</th>
-                    <th>CÃ©dula</th>
-                    <th># PrÃ©stamo</th>
+                    <th>Cédula</th>
+                    <th># Préstamo</th>
                     <th>Balance Pendiente</th>
-                    <th style={{ textAlign: 'center' }}>DÃ­as Atraso</th>
+                    <th style={{ textAlign: 'center' }}>Días Atraso</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -201,7 +195,7 @@ export default function DashboardPage() {
                         {formatCurrency(alerta.balance_pendiente)}
                       </td>
                       <td style={{ textAlign: 'center', fontWeight: 'bold', color: alerta.dias_atraso > 30 ? 'var(--danger)' : 'var(--warning)' }}>
-                        {alerta.dias_atraso} dÃ­as
+                        {alerta.dias_atraso} días
                       </td>
                     </tr>
                   ))}
@@ -209,9 +203,9 @@ export default function DashboardPage() {
               </table>
             ) : (
               <div className="empty-state">
-                <span className="empty-state-icon" style={{ color: 'var(--secondary)' }}>ðŸŽ‰</span>
+                <span className="empty-state-icon" style={{ color: 'var(--secondary)' }}>🎉</span>
                 <div className="empty-state-title">Cartera Sana</div>
-                <div className="empty-state-desc">No hay prÃ©stamos con dÃ­as de atraso registrados.</div>
+                <div className="empty-state-desc">No hay préstamos con días de atraso registrados.</div>
               </div>
             )}
           </div>

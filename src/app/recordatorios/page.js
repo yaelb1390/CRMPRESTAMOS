@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { apiFetch } from '@/lib/apiFetch';
+import { formatCurrency } from '@/lib/format';
 
 export default function RecordatoriosPage() {
   const { showToast } = useToast();
@@ -34,13 +35,6 @@ export default function RecordatoriosPage() {
     fetchLoans();
   }, []);
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-DO', {
-      style: 'currency',
-      currency: 'DOP',
-      minimumFractionDigits: 2
-    }).format(value).replace('DOP', 'RD$');
-  };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'Nunca';
@@ -72,13 +66,13 @@ export default function RecordatoriosPage() {
       const json = await res.json();
 
       if (res.ok) {
-        showToast(`Recordatorio de ${tipo === 'mora' ? 'mora' : 'vencimiento'} enviado con Ã©xito a n8n.`, 'success');
+        showToast(`Recordatorio de ${tipo === 'mora' ? 'mora' : 'vencimiento'} enviado con éxito a n8n.`, 'success');
         setSendingStates(prev => ({ ...prev, [cedula]: 'success' }));
         
         // Refresh loans to get the updated fecha_ultima_alerta
         fetchLoans();
       } else {
-        showToast(json.error || 'OcurriÃ³ un error al enviar el recordatorio.', 'error');
+        showToast(json.error || 'Ocurrió un error al enviar el recordatorio.', 'error');
         setSendingStates(prev => ({ ...prev, [cedula]: 'error' }));
       }
     } catch (err) {
@@ -119,7 +113,7 @@ export default function RecordatoriosPage() {
       <div>
         <h1>Recordatorios y Alertas</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Gestiona el envÃ­o de recordatorios de cobro automÃ¡ticos a travÃ©s de tu servidor n8n.
+          Gestiona el envío de recordatorios de cobro automáticos a través de tu servidor n8n.
         </p>
       </div>
 
@@ -138,7 +132,7 @@ export default function RecordatoriosPage() {
             fontSize: '14.5px'
           }}
         >
-          ðŸš¨ Alertas de Mora ({overdueLoans.length})
+          🚨 Alertas de Mora ({overdueLoans.length})
         </button>
 
         <button
@@ -154,7 +148,7 @@ export default function RecordatoriosPage() {
             fontSize: '14.5px'
           }}
         >
-          ðŸ”” Preventivos (PrÃ³ximos a vencer) ({upcomingLoans.length})
+          🔔 Preventivos (Próximos a vencer) ({upcomingLoans.length})
         </button>
       </div>
 
@@ -164,7 +158,7 @@ export default function RecordatoriosPage() {
           <input
             type="text"
             className="form-control"
-            placeholder="Buscar por cliente, cÃ©dula o prÃ©stamo..."
+            placeholder="Buscar por cliente, cédula o préstamo..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -178,15 +172,15 @@ export default function RecordatoriosPage() {
               <thead>
                 <tr>
                   <th>Cliente</th>
-                  <th># PrÃ©stamo</th>
+                  <th># Préstamo</th>
                   <th>Cuota Mensual</th>
                   {activeTab === 'mora' ? (
-                    <th style={{ textAlign: 'center' }}>DÃ­as Atraso</th>
+                    <th style={{ textAlign: 'center' }}>Días Atraso</th>
                   ) : (
                     <th>Fecha Vencimiento</th>
                   )}
-                  <th>Ãšltima Alerta</th>
-                  <th style={{ textAlign: 'right' }}>AcciÃ³n</th>
+                  <th>Última Alerta</th>
+                  <th style={{ textAlign: 'right' }}>Acción</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,7 +191,7 @@ export default function RecordatoriosPage() {
                       <td>
                         <div style={{ fontWeight: 600 }}>{loan.nombre_cliente}</div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-light)', marginTop: '2px' }}>
-                          CÃ©dula: {loan.cedula} | Tel: {loan.telefono || 'Sin registrar'}
+                          Cédula: {loan.cedula} | Tel: {loan.telefono || 'Sin registrar'}
                         </div>
                       </td>
                       <td>
@@ -206,7 +200,7 @@ export default function RecordatoriosPage() {
                       <td style={{ fontWeight: 500 }}>{formatCurrency(loan.cuota_mensual)}</td>
                       {activeTab === 'mora' ? (
                         <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--danger)' }}>
-                          {loan.dias_atraso} dÃ­as
+                          {loan.dias_atraso} días
                         </td>
                       ) : (
                         <td style={{ fontWeight: 600, color: 'var(--primary)' }}>
@@ -229,10 +223,10 @@ export default function RecordatoriosPage() {
                           disabled={state === 'sending'}
                           onClick={() => handleSendNotification(loan, activeTab)}
                         >
-                          {state === 'idle' && 'âœ‰ï¸ Enviar a n8n'}
-                          {state === 'sending' && 'â³ Enviando...'}
-                          {state === 'success' && 'âœ“ Enviado'}
-                          {state === 'error' && 'âš  Reintentar'}
+                          {state === 'idle' && '✉️ Enviar a n8n'}
+                          {state === 'sending' && '⏳ Enviando...'}
+                          {state === 'success' && '✓ Enviado'}
+                          {state === 'error' && '⚠ Reintentar'}
                         </button>
                       </td>
                     </tr>
@@ -242,7 +236,7 @@ export default function RecordatoriosPage() {
             </table>
           ) : (
             <div className="empty-state">
-              <span className="empty-state-icon">ðŸŽ‰</span>
+              <span className="empty-state-icon">🎉</span>
               <div className="empty-state-title">Todo controlado</div>
               <div className="empty-state-desc">
                 No hay clientes que requieran recordatorios bajo el criterio seleccionado.
