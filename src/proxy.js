@@ -3,7 +3,9 @@ import { jwtVerify } from 'jose';
 import { getSecretKey } from '@/lib/auth';
 
 // Define the public and protected routes
-const publicRoutes = ['/login', '/api/auth/login', '/api/configuracion/logo'];
+// '/api/prestamos/actualizar-mora' es "público" a nivel de proxy porque el cron de
+// Vercel no envía cookie; la propia ruta exige sesión válida o CRON_SECRET.
+const publicRoutes = ['/login', '/api/auth/login', '/api/configuracion/logo', '/api/prestamos/actualizar-mora'];
 const adminOnlyRoutes = ['/dashboard', '/prestamos', '/usuarios', '/reportes', '/api/reportes'];
 const collaboratorAllowedRoutes = [
   '/clientes', 

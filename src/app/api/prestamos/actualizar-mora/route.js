@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { calcularDiasAtraso } from '@/lib/fechas';
 import { calcularMora } from '@/lib/mora';
+import { getCurrentUser } from '@/lib/auth';
 
 /**
  * POST /api/prestamos/actualizar-mora
@@ -13,9 +14,20 @@ import { calcularMora } from '@/lib/mora';
  * También actualiza fecha_proximo_pago a partir de la próxima cuota
  * pendiente real en la tabla cuotas.
  *
- * Llamar desde un cron, o cada vez que se carga el dashboard.
+ * Llamar desde un cron (Vercel Cron con CRON_SECRET) o al cargar el dashboard.
  */
-export async function POST() {
+export async function POST(request) {
+  // Autorización: sesión válida (dashboard) o secreto de cron (Vercel Cron).
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request?.headers?.get('authorization');
+  const isCron = !!cronSecret && authHeader === `Bearer ${cronSecret}`;
+  if (!isCron) {
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+    }
+  }
+
   try {
     // 1. Traer todos los préstamos que aún tienen balance pendiente
     const prestamosRes = await query(`
@@ -113,6 +125,6 @@ export async function POST() {
  * GET /api/prestamos/actualizar-mora
  * Alias para poder llamarlo desde el browser (útil para pruebas).
  */
-export async function GET() {
-  return POST();
+export async function GET(request) {
+  return POST(request);
 }
