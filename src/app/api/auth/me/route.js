@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { query } from '@/lib/db';
 import { getSecretKey } from '@/lib/auth';
@@ -18,7 +18,7 @@ export async function GET(request) {
       ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permisos JSONB DEFAULT '[]'
     `);
 
-    // Consultar dinÃ¡micamente el usuario para obtener permisos y rol actualizados en tiempo real
+    // Consultar dinámicamente el usuario para obtener permisos y rol actualizados en tiempo real
     const dbUserRes = await query("SELECT id, username, nombre, rol, permisos FROM usuarios WHERE id = $1", [payload.id]);
     
     if (dbUserRes.rows.length === 0) {

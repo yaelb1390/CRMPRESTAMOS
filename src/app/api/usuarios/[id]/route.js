@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { requireAdmin } from '@/lib/auth';
@@ -55,11 +55,11 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 });
     }
 
-    // ProtecciÃ³n: no permitir eliminar el Ãºltimo administrador
+    // Protección: no permitir eliminar el último administrador
     if (check.rows[0].rol === 'admin') {
       const adminCount = await query("SELECT COUNT(*) as cnt FROM usuarios WHERE rol = 'admin'");
       if (parseInt(adminCount.rows[0].cnt) <= 1) {
-        return NextResponse.json({ error: "No se puede eliminar el Ãºnico administrador del sistema." }, { status: 400 });
+        return NextResponse.json({ error: "No se puede eliminar el único administrador del sistema." }, { status: 400 });
       }
     }
 

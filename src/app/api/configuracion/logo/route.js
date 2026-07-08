@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -57,15 +57,15 @@ export async function POST(request) {
     const { logo_base64 } = body;
 
     if (!logo_base64 || !logo_base64.startsWith('data:image/')) {
-      return NextResponse.json({ error: "Formato de imagen invÃ¡lido." }, { status: 400 });
+      return NextResponse.json({ error: "Formato de imagen inválido." }, { status: 400 });
     }
 
-    // Calcular el tamaÃ±o aproximado en bytes (base64 incrementa el tamaÃ±o ~33%)
+    // Calcular el tamaño aproximado en bytes (base64 incrementa el tamaño ~33%)
     const stringLength = logo_base64.length - (logo_base64.indexOf(',') + 1);
     const sizeInBytes = 4 * Math.ceil(stringLength / 3) * 0.5624896334383812;
     
-    if (sizeInBytes > 10 * 1024 * 1024) { // 10 MB lÃ­mite
-      return NextResponse.json({ error: "La imagen es muy grande. El lÃ­mite es 10MB." }, { status: 400 });
+    if (sizeInBytes > 10 * 1024 * 1024) { // 10 MB límite
+      return NextResponse.json({ error: "La imagen es muy grande. El límite es 10MB." }, { status: 400 });
     }
 
     // Asegurar que la columna 'valor' sea TEXT para soportar Base64 largo
@@ -95,7 +95,7 @@ export async function POST(request) {
         fs.writeFileSync(path.join(process.cwd(), 'public', 'logo.png'), imageBuffer);
       }
     } catch (e) {
-      console.error("No se pudo escribir logo.png fÃ­sicamente", e);
+      console.error("No se pudo escribir logo.png físicamente", e);
     }
 
     return NextResponse.json({ success: true, message: "Logo actualizado exitosamente." });

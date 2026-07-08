@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -13,7 +13,7 @@ export async function GET(request) {
     return NextResponse.json({ data: res.rows });
   } catch (err) {
     console.error("Config GET API error:", err);
-    return NextResponse.json({ error: "Error al obtener configuraciÃ³n" }, { status: 500 });
+    return NextResponse.json({ error: "Error al obtener configuración" }, { status: 500 });
   }
 }
 
@@ -42,7 +42,7 @@ export async function PUT(request) {
       [clave, valor, user.nombre]
     );
 
-    // AuditorÃ­a
+    // Auditoría
     try {
       const { registrarAuditoria } = await import('@/lib/audit');
       await registrarAuditoria({
@@ -54,12 +54,12 @@ export async function PUT(request) {
         usuario: user
       });
     } catch (e) {
-      console.error("Error en auditorÃ­a:", e);
+      console.error("Error en auditoría:", e);
     }
 
-    return NextResponse.json({ success: true, message: "ConfiguraciÃ³n actualizada" });
+    return NextResponse.json({ success: true, message: "Configuración actualizada" });
   } catch (err) {
     console.error("Config PUT API error:", err);
-    return NextResponse.json({ error: "Error al actualizar configuraciÃ³n" }, { status: 500 });
+    return NextResponse.json({ error: "Error al actualizar configuración" }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -15,7 +15,7 @@ function LoginContent() {
 
   useEffect(() => {
     if (searchParams.get('expired') === '1') {
-      setError('Tu sesiÃ³n expirÃ³. Inicia sesiÃ³n de nuevo.');
+      setError('Tu sesión expiró. Inicia sesión de nuevo.');
     }
   }, [searchParams]);
 
@@ -34,7 +34,7 @@ function LoginContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al iniciar sesiÃ³n');
+        throw new Error(data.error || 'Error al iniciar sesión');
       }
 
       // Redirect based on role
@@ -55,7 +55,7 @@ function LoginContent() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <img src="/api/configuracion/logo?v=6" alt="PrÃ©stamos BM" className="login-logo-img" onError={(e) => { e.target.src = '/logo.png?v=6'; }} />
+          <img src="/api/configuracion/logo?v=6" alt="Préstamos BM" className="login-logo-img" onError={(e) => { e.target.src = '/logo.png?v=6'; }} />
         </div>
         
         {error && <div className="login-error">{error}</div>}
@@ -72,17 +72,17 @@ function LoginContent() {
             />
           </div>
           <div className="form-group">
-            <label>ContraseÃ±a</label>
+            <label>Contraseña</label>
             <input 
               type="password" 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
-              placeholder="Ingresa tu contraseÃ±a"
+              placeholder="Ingresa tu contraseña"
               required 
             />
           </div>
           <button type="submit" className="btn btn-primary login-btn" disabled={loading}>
-            {loading ? 'Ingresando...' : 'Iniciar SesiÃ³n'}
+            {loading ? 'Ingresando...' : 'Iniciar Sesión'}
           </button>
         </form>
       </div>

@@ -1,10 +1,10 @@
-﻿import { jwtVerify } from 'jose';
+import { jwtVerify } from 'jose';
 import { NextResponse } from 'next/server';
 
 function getSecretKey() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('JWT_SECRET no estÃ¡ definido en las variables de entorno.');
+    throw new Error('JWT_SECRET no está definido en las variables de entorno.');
   }
   return new TextEncoder().encode(secret);
 }
@@ -25,7 +25,7 @@ export async function getCurrentUser(request) {
 }
 
 /**
- * Requiere autenticaciÃ³n. Devuelve 401 si no hay sesiÃ³n vÃ¡lida.
+ * Requiere autenticación. Devuelve 401 si no hay sesión válida.
  * @returns {Promise<{user, errorResponse}>}
  */
 export async function requireAuth(request) {
@@ -34,7 +34,7 @@ export async function requireAuth(request) {
     return {
       user: null,
       errorResponse: NextResponse.json(
-        { error: 'No autorizado. Debe iniciar sesiÃ³n.' },
+        { error: 'No autorizado. Debe iniciar sesión.' },
         { status: 401 }
       ),
     };

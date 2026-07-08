@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
@@ -20,7 +20,7 @@ export default function ConfiguracionPage() {
         const json = await res.json();
         setConfigs(json.data || []);
       } else {
-        showToast('Error al cargar configuraciÃ³n', 'error');
+        showToast('Error al cargar configuración', 'error');
       }
     } catch (err) {
       showToast('Error de red', 'error');
@@ -47,7 +47,7 @@ export default function ConfiguracionPage() {
         body: JSON.stringify({ clave, valor: editValue })
       });
       if (res.ok) {
-        showToast('ConfiguraciÃ³n guardada', 'success');
+        showToast('Configuración guardada', 'success');
         setEditingKey(null);
         fetchConfigs();
       } else {
@@ -63,9 +63,9 @@ export default function ConfiguracionPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h1>ConfiguraciÃ³n Financiera</h1>
+        <h1>Configuración Financiera</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
-          Gestiona tasas, moras y lÃ­mites operativos del sistema.
+          Gestiona tasas, moras y límites operativos del sistema.
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export default function ConfiguracionPage() {
               <thead>
                 <tr>
                   <th>Clave</th>
-                  <th>DescripciÃ³n</th>
+                  <th>Descripción</th>
                   <th>Valor Actual</th>
                   <th>Acciones</th>
                 </tr>
@@ -107,11 +107,11 @@ export default function ConfiguracionPage() {
                     <td>
                       {editingKey === c.clave ? (
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn btn-primary" style={{ padding: '4px 8px' }} onClick={() => handleSave(c.clave)} disabled={saving}>ðŸ’¾ Guardar</button>
-                          <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setEditingKey(null)} disabled={saving}>âŒ Cancelar</button>
+                          <button className="btn btn-primary" style={{ padding: '4px 8px' }} onClick={() => handleSave(c.clave)} disabled={saving}>💾 Guardar</button>
+                          <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => setEditingKey(null)} disabled={saving}>❌ Cancelar</button>
                         </div>
                       ) : (
-                        <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => handleEdit(c)}>âœï¸ Editar</button>
+                        <button className="btn btn-secondary" style={{ padding: '4px 8px' }} onClick={() => handleEdit(c)}>✏️ Editar</button>
                       )}
                     </td>
                   </tr>
@@ -141,7 +141,7 @@ export default function ConfiguracionPage() {
           <div style={{ flex: 1, minWidth: '250px' }}>
             <h3 style={{ fontSize: '15px', marginBottom: '8px' }}>Logo de la Empresa</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-              Sube tu propio logo para personalizar el CRM. Recomendado: formato PNG con fondo transparente. TamaÃ±o mÃ¡ximo: 10MB.
+              Sube tu propio logo para personalizar el CRM. Recomendado: formato PNG con fondo transparente. Tamaño máximo: 10MB.
             </p>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               <input 
@@ -153,7 +153,7 @@ export default function ConfiguracionPage() {
                   const file = e.target.files[0];
                   if (!file) return;
                   if (file.size > 10 * 1024 * 1024) {
-                    showToast('El archivo es demasiado grande (mÃ¡ximo 10MB)', 'error');
+                    showToast('El archivo es demasiado grande (máximo 10MB)', 'error');
                     return;
                   }
                   
@@ -189,13 +189,13 @@ export default function ConfiguracionPage() {
                 className="btn btn-primary" 
                 style={{ cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}
               >
-                {saving ? 'â³ Subiendo...' : 'ðŸ“ Cambiar Logo'}
+                {saving ? '⏳ Subiendo...' : '📁 Cambiar Logo'}
               </label>
               <button 
                 className="btn btn-secondary" 
                 disabled={saving}
                 onClick={async () => {
-                  if(!confirm('Â¿Seguro que deseas restablecer el logo al por defecto?')) return;
+                  if(!confirm('¿Seguro que deseas restablecer el logo al por defecto?')) return;
                   try {
                     setSaving(true);
                     const res = await apiFetch('/api/configuracion/logo', { method: 'DELETE' });
@@ -212,7 +212,7 @@ export default function ConfiguracionPage() {
                   }
                 }}
               >
-                ðŸ”„ Restablecer
+                🔄 Restablecer
               </button>
             </div>
           </div>
