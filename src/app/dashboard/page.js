@@ -15,6 +15,9 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       setError('');
+      // Recalcular mora/atraso antes de leer las metricas (endpoint idempotente).
+      // No bloquea el dashboard si falla.
+      await apiFetch('/api/prestamos/actualizar-mora', { method: 'POST' }).catch(() => {});
       const res = await apiFetch('/api/dashboard');
       if (!res.ok) {
         throw new Error('Error al obtener datos del servidor');
