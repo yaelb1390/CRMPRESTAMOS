@@ -12,12 +12,15 @@ const collaboratorAllowedRoutes = [
   '/cobros', 
   '/recibo',
   '/recordatorios',
-  '/api/clientes', 
-  '/api/buscar', 
+  '/api/clientes',
+  '/api/buscar',
   '/api/pagos',
   '/api/prestamos',
   '/api/notificaciones',
-  '/api/auth/logout', 
+  '/api/correos',
+  '/api/configuracion/empresa',
+  '/api/configuracion/logo',
+  '/api/auth/logout',
   '/api/auth/me'
 ];
 

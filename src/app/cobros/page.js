@@ -112,9 +112,9 @@ export default function CobrosPage() {
         fetchLoans();
         fetchRecentPayments();
         
-        // Ask if they want to print the receipt
+        // Ask if they want to print the receipt (térmico 80mm por defecto)
         if (confirm('¿Desea imprimir el recibo de este pago?')) {
-          window.open(`/recibo/${json.data.pagoId}`, '_blank', 'width=800,height=600');
+          window.open(`/recibo/${json.data.pagoId}?formato=termico`, '_blank', 'width=420,height=640');
         }
       } else {
         setFormError(json.error || 'Ocurrió un error al registrar el cobro.');
@@ -128,7 +128,7 @@ export default function CobrosPage() {
   };
 
   const handlePrintReceipt = (pagoId) => {
-    window.open(`/recibo/${pagoId}`, '_blank', 'width=800,height=600');
+    window.open(`/recibo/${pagoId}?formato=termico`, '_blank', 'width=420,height=640');
   };
 
   // Filter and search logic

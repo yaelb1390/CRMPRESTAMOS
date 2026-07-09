@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import nodemailer from 'nodemailer';
 import { formatCurrency } from '@/lib/format';
+import { ensureEmpresaConfig } from '@/lib/schema';
 
 export async function POST(request) {
   try {
@@ -64,10 +65,21 @@ export async function POST(request) {
     // Obtener URL del logo (esto asume que el sistema está en un dominio público, si es local usaremos una imagen incrustada o URL absoluta si existe)
     // Por simplicidad en correos, el logo se puede inyectar como base64, o usar el nombre de la empresa como fallback.
     
-    const configuracionRes = await query("SELECT config_value FROM configuracion WHERE config_key = 'logo_base64'");
-    let logoHtml = `<h2 style="color: #1E3A5F; margin: 0;">Préstamos BM</h2>`;
-    if (configuracionRes.rows.length > 0 && configuracionRes.rows[0].config_value) {
-      logoHtml = `<img src="${configuracionRes.rows[0].config_value}" alt="Logo" style="max-height: 60px; max-width: 200px;" />`;
+    // Datos de la empresa (nombre, RNC) y logo desde la configuración financiera.
+    await ensureEmpresaConfig();
+    const cfgRes = await query(
+      `SELECT clave, valor FROM configuracion_financiera WHERE clave = ANY($1)`,
+      [['empresa_nombre', 'empresa_rnc', 'logo_base64']]
+    );
+    const cfg = new Map(cfgRes.rows.map((r) => [r.clave, r.valor]));
+    const empresaNombre = cfg.get('empresa_nombre') || 'Préstamos BM';
+    const empresaRnc = cfg.get('empresa_rnc') || '';
+    const logoBase64 = cfg.get('logo_base64');
+
+    let logoHtml = `<h2 style="color: #1E3A5F; margin: 0;">${empresaNombre}</h2>`
+      + (empresaRnc ? `<div style="color:#64748b;font-size:12px;">RNC: ${empresaRnc}</div>` : '');
+    if (logoBase64) {
+      logoHtml = `<img src="${logoBase64}" alt="Logo" style="max-height: 60px; max-width: 200px;" />`;
     }
 
     // Diseño del correo (HTML)
@@ -127,9 +139,9 @@ export async function POST(request) {
 
     // Configurar el mensaje
     const mailOptions = {
-      from: `"CRM Préstamos BM" <${smtpUser}>`,
+      from: `"${empresaNombre}" <${smtpUser}>`,
       to: pago.cliente_email,
-      subject: `Factura de Pago #${String(pago.recibo_no).padStart(6, '0')} - Préstamos BM`,
+      subject: `Factura de Pago #${String(pago.recibo_no).padStart(6, '0')} - ${empresaNombre}`,
       html: htmlContent,
     };
 

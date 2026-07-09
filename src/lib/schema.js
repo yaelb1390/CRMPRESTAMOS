@@ -23,3 +23,31 @@ export async function ensureClientesColumns() {
     console.error('Error ensuring columns:', err);
   }
 }
+
+/**
+ * Datos de la empresa para el encabezado de la factura/recibo.
+ * Se siembran como claves de `configuracion_financiera` (INSERT idempotente) para
+ * que aparezcan y se editen desde el módulo de Configuración existente, sin tocar su UI.
+ * Los recibos los leen vía `GET /api/configuracion/empresa`.
+ */
+export const EMPRESA_DEFAULTS = [
+  { clave: 'empresa_nombre', valor: 'Préstamos BM', descripcion: 'Nombre de la empresa (factura)' },
+  { clave: 'empresa_rnc', valor: '', descripcion: 'RNC / cédula de la empresa (factura)' },
+  { clave: 'empresa_direccion', valor: 'Santo Domingo, Rep. Dom.', descripcion: 'Dirección de la empresa (factura)' },
+  { clave: 'empresa_telefono', valor: '', descripcion: 'Teléfono de la empresa (factura)' },
+];
+
+export async function ensureEmpresaConfig() {
+  try {
+    for (const row of EMPRESA_DEFAULTS) {
+      await query(
+        `INSERT INTO configuracion_financiera (clave, valor, descripcion)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (clave) DO NOTHING`,
+        [row.clave, row.valor, row.descripcion]
+      );
+    }
+  } catch (err) {
+    console.error('Error ensuring empresa config:', err);
+  }
+}
