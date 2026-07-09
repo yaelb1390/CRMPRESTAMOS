@@ -8,10 +8,11 @@ export async function GET() {
       prestamosStatsRes,
       carteraRes,
       alertasRes,
-      moraTotalRes
+      moraTotalRes,
+      cobrosMetodoRes,
     ] = await Promise.all([
       query(`
-        SELECT 
+        SELECT
           COUNT(*) as total_clientes,
           SUM(CASE WHEN clasificacion = 'excelente' THEN 1 ELSE 0 END) as excelentes,
           SUM(CASE WHEN clasificacion = 'riesgoso' THEN 1 ELSE 0 END) as morosos,
@@ -21,7 +22,7 @@ export async function GET() {
         FROM clientes
       `),
       query(`
-        SELECT 
+        SELECT
           COUNT(*) as total_prestamos,
           SUM(CASE WHEN estado = 'activo' THEN 1 ELSE 0 END) as activos,
           SUM(CASE WHEN estado = 'pagado' THEN 1 ELSE 0 END) as liquidados,
@@ -29,22 +30,31 @@ export async function GET() {
         FROM prestamos
       `),
       query(`
-        SELECT COALESCE(SUM(balance_pendiente), 0) as capital_pendiente 
-        FROM prestamos 
+        SELECT COALESCE(SUM(balance_pendiente), 0) as capital_pendiente
+        FROM prestamos
         WHERE estado IN ('activo','atrasado')
       `),
       query(`
-        SELECT c.nombre as nombre_cliente, p.cedula, p.numero_prestamo, p.balance_pendiente, p.dias_atraso, p.estado 
+        SELECT c.nombre as nombre_cliente, p.cedula, p.numero_prestamo, p.balance_pendiente, p.dias_atraso, p.estado
         FROM prestamos p
         LEFT JOIN clientes c ON p.cedula = c.cedula
         WHERE p.dias_atraso > 0 AND p.balance_pendiente > 0 AND p.estado != 'pagado'
         ORDER BY p.dias_atraso DESC LIMIT 20
       `),
       query(`
-        SELECT COALESCE(SUM(mora_acumulada), 0) as total_mora 
-        FROM prestamos 
+        SELECT COALESCE(SUM(mora_acumulada), 0) as total_mora
+        FROM prestamos
         WHERE dias_atraso > 0 AND balance_pendiente > 0 AND estado != 'pagado'
-      `)
+      `),
+      // Cobros por método de pago
+      query(`
+        SELECT COALESCE(NULLIF(TRIM(metodo_pago), ''), 'otro') as metodo,
+               SUM(monto_pagado) as total,
+               COUNT(*) as cantidad
+        FROM pagos
+        GROUP BY 1
+        ORDER BY total DESC
+      `),
     ]);
 
     const cStats = clientesStatsRes.rows[0];
@@ -52,30 +62,42 @@ export async function GET() {
 
     // Calculamos activos como total - históricos
     const historicos = parseInt(cStats.historicos) || 0;
-    const activos = (parseInt(cStats.total_clientes) || 0) - historicos;
+    const totalClientes = parseInt(cStats.total_clientes) || 0;
+    const activos = totalClientes - historicos;
+    const excelentes = parseInt(cStats.excelentes) || 0;
+    const morosos = parseInt(cStats.morosos) || 0;
 
     return NextResponse.json({
       metrics: {
         clientesActivos: activos,
         clientesHistoricos: historicos,
+        clientesTotales: totalClientes,
         prestamosActivos: parseInt(pStats.activos) || 0,
         prestamosLiquidados: parseInt(pStats.liquidados) || 0,
         capitalPrestado: parseFloat(cStats.capital_prestado) || 0,
         capitalRecuperado: parseFloat(cStats.capital_recuperado) || 0,
         capitalPendiente: parseFloat(carteraRes.rows[0].capital_pendiente) || 0,
-        clientesExcelentes: parseInt(cStats.excelentes) || 0,
-        clientesMorosos: parseInt(cStats.morosos) || 0,
+        clientesExcelentes: excelentes,
+        clientesMorosos: morosos,
+        clientesRegulares: Math.max(0, totalClientes - excelentes - morosos),
         prestamosEnMora: parseInt(pStats.atrasados) || 0,
-        montoTotalMora: parseFloat(moraTotalRes.rows[0].total_mora) || 0
+        montoTotalMora: parseFloat(moraTotalRes.rows[0].total_mora) || 0,
       },
-      alertas: alertasRes.rows.map(row => ({
+      series: {
+        cobrosPorMetodo: cobrosMetodoRes.rows.map((r) => ({
+          metodo: r.metodo,
+          total: parseFloat(r.total) || 0,
+          cantidad: parseInt(r.cantidad) || 0,
+        })),
+      },
+      alertas: alertasRes.rows.map((row) => ({
         ...row,
         balance_pendiente: parseFloat(row.balance_pendiente),
-        dias_atraso: parseInt(row.dias_atraso)
-      }))
+        dias_atraso: parseInt(row.dias_atraso),
+      })),
     });
   } catch (err) {
-    console.error("Dashboard API error:", err);
-    return NextResponse.json({ error: "No se pudo conectar a la base de datos o ejecutar la consulta." }, { status: 500 });
+    console.error('Dashboard API error:', err);
+    return NextResponse.json({ error: 'No se pudo conectar a la base de datos o ejecutar la consulta.' }, { status: 500 });
   }
 }
