@@ -11,6 +11,7 @@ export default function AppShell({ children }) {
   const router = useRouter();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -24,6 +25,21 @@ export default function AppShell({ children }) {
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  // Recordar la preferencia de sidebar colapsado (escritorio)
+  useEffect(() => {
+    if (localStorage.getItem('sidebarCollapsed') === '1') setSidebarCollapsed(true);
+  }, []);
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebarCollapsed', next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  };
 
   // Debounce logic for search
   useEffect(() => {
@@ -101,7 +117,7 @@ export default function AppShell({ children }) {
   const isAuthorized = !requiredPerm || hasPermission(requiredPerm);
 
   return (
-    <div className="app-container">
+    <div className={`app-container${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
@@ -210,6 +226,23 @@ export default function AppShell({ children }) {
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
             <span className="hamburger-line"></span>
+          </button>
+
+          {/* Colapsar/expandir sidebar (visible en escritorio) */}
+          <button
+            className="sidebar-toggle-btn"
+            onClick={toggleSidebarCollapsed}
+            aria-label={sidebarCollapsed ? 'Mostrar barra lateral' : 'Ocultar barra lateral'}
+            aria-pressed={sidebarCollapsed}
+            title={sidebarCollapsed ? 'Mostrar menú' : 'Ocultar menú'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              {sidebarCollapsed
+                ? <path d="m14 9 3 3-3 3" />
+                : <path d="m16 15-3-3 3-3" />}
+            </svg>
           </button>
 
           {/* Breadcrumb */}

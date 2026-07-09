@@ -183,6 +183,43 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Sidebar colapsado (escritorio) --- */
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--neutral-bg);
+  color: var(--primary);
+}
+
+.app-container.sidebar-collapsed .sidebar {
+  transform: translateX(-100%);
+}
+
+.app-container.sidebar-collapsed .main-wrapper {
+  margin-left: 0;
+}
+
+/* En móvil manda el botón hamburguesa; se oculta el de colapso */
+@media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    display: none;
+  }
 }
 
 /* Header - Glassmorphism Corporate Header */
